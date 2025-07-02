@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import short from 'short-uuid';
 
-import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
     StoryParams, GeneratedStory, PersonalChallenge, CoupleChallenge, IcebreakerQuestion, RoleplayScenario, 
     DateIdea, GameChallenge, IntimateRitual, RitualEnergy, AiPreferences, WeeklyMission, RealWorldAdventure, 
