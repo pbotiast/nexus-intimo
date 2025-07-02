@@ -87,10 +87,10 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
         
         const response = result.response;
         
-        // --- FINAL FIX: More robust check to satisfy TypeScript's strict mode ---
+        // --- FINAL FIX v2: More explicit check for strict TypeScript ---
         const candidate = response.candidates?.[0];
 
-        if (candidate?.content?.parts?.length > 0) {
+        if (candidate && candidate.content && Array.isArray(candidate.content.parts) && candidate.content.parts.length > 0) {
             const text = candidate.content.parts[0].text || '';
             try {
                 return JSON.parse(text);
