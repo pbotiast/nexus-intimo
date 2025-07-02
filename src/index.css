@@ -4,7 +4,7 @@
 
 /* Puedes añadir estilos globales personalizados aquí si lo necesitas */
 body {
-  background-color: #111827; /* Un fondo oscuro por defecto */
-  color: #e5e7eb; /* Un color de texto claro por defecto */
-  font-family: 'Inter', sans-serif; /* Una fuente moderna y legible */
+    background-color: #111827; /* Un fondo oscuro por defecto */
+    color: #e5e7eb; /* Un color de texto claro por defecto */
+    font-family: 'Inter', sans-serif; /* Una fuente moderna y legible */
 }
