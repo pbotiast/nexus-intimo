@@ -88,13 +88,20 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
         const response = result.response;
         const candidate = response.candidates?.[0];
 
-        // --- FINAL FIX v3: Using a guard clause for ultimate type safety ---
+        // Guard clause to ensure the structure is valid down to the 'parts' array.
         if (!candidate || !candidate.content || !Array.isArray(candidate.content.parts) || candidate.content.parts.length === 0) {
-            throw new Error("Invalid response structure from AI");
+            throw new Error("Invalid response structure from AI: Missing candidates or parts.");
         }
 
-        // Now TypeScript is 100% sure candidate and its properties are defined.
-        const text = candidate.content.parts[0].text || '';
+        const firstPart = candidate.content.parts[0];
+
+        // Final guard to ensure the first part has the text we need.
+        if (!firstPart || typeof firstPart.text !== 'string') {
+             throw new Error("Invalid response structure from AI: First part has no text.");
+        }
+
+        // Now TypeScript is 100% sure `firstPart.text` is a string.
+        const text = firstPart.text;
         try {
             return JSON.parse(text);
         } catch (e) {
