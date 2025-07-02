@@ -59,7 +59,6 @@ app.post('/api/couples', (req: Request, res: Response) => {
 app.post('/api/couples/join', (req: Request, res: Response) => {
     const { code } = req.body;
 
-    // --- FIX: Stricter check for the pairing code ---
     if (typeof code !== 'string' || !pairingCodes[code]) {
         return res.status(404).json({ message: 'Código de emparejamiento no válido o expirado.' });
     }
@@ -73,7 +72,6 @@ app.post('/api/couples/join', (req: Request, res: Response) => {
 app.get('/api/couples/:coupleId', (req: Request, res: Response) => {
     const { coupleId } = req.params;
 
-    // --- FIX: Stricter check for the coupleId ---
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return res.status(404).json({ message: 'Sesión no encontrada.' });
     }
@@ -87,10 +85,13 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
         const fullPrompt = `Contexto de la pareja: ${JSON.stringify(coupleData)}\n\nTarea: ${prompt}`;
         const result = await model.generateContent(fullPrompt);
         
-        // --- FIX: Correct way to get text from Gemini API response ---
         const response = result.response;
-        if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts.length > 0) {
-            const text = response.candidates[0].content.parts[0].text || '';
+        
+        // --- FINAL FIX: More robust check to satisfy TypeScript's strict mode ---
+        const candidate = response.candidates?.[0];
+
+        if (candidate?.content?.parts?.length > 0) {
+            const text = candidate.content.parts[0].text || '';
             try {
                 return JSON.parse(text);
             } catch (e) {
