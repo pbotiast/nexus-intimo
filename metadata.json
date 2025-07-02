@@ -1,0 +1,8 @@
+{
+  "name": "Nexus Íntimo",
+  "description": "An application for couples and individuals to explore intimacy, connection, and pleasure through AI-powered stories, games, and guided journeys.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "prompt": ""
+}
