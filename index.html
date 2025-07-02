@@ -9,7 +9,13 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Esta ruta absoluta desde la raíz del proyecto es el estándar para Vite -->
-    <script type="module" src="/index.tsx"></script>
+    <!-- FIX: Using a relative path is the correct and most robust standard -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
+<script>
+  // This script is used to handle the redirection from the root path to the nexus-intimo path
+  if (window.location.pathname === '/') {
+    window.location.href = '/nexus-%C3%ADntimo/';
+  }
+</script>
