@@ -81,7 +81,8 @@ app.get('/api/couples/:coupleId', (req: Request, res: Response) => {
 
 async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        // --- FINAL FIX: Use an up-to-date model name ---
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const fullPrompt = `Contexto de la pareja: ${JSON.stringify(coupleData)}\n\nTarea: ${prompt}`;
         const result = await model.generateContent(fullPrompt);
         
@@ -100,7 +101,6 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
              throw new Error("Invalid response structure from AI: First part has no text.");
         }
 
-        // Now TypeScript is 100% sure `firstPart.text` is a string.
         const text = firstPart.text;
         try {
             return JSON.parse(text);
