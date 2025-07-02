@@ -9,13 +9,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- FIX: Correct path to the main TypeScript file (removed leading slash) -->
-    <script type="module" src="src/index.tsx"></script>
+    <!-- FIX: Path now correctly points to index.tsx in the project root -->
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
-<script>
-  // This script is used to handle the redirection to the correct path
-  if (window.location.pathname === '/') {
-    window.location.href = '/nexus-%C3%ADntimo/';
-  }
-</script>
