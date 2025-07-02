@@ -86,20 +86,21 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
         const result = await model.generateContent(fullPrompt);
         
         const response = result.response;
-        
-        // --- FINAL FIX v2: More explicit check for strict TypeScript ---
         const candidate = response.candidates?.[0];
 
-        if (candidate && candidate.content && Array.isArray(candidate.content.parts) && candidate.content.parts.length > 0) {
-            const text = candidate.content.parts[0].text || '';
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                return { text };
-            }
-        } else {
-             throw new Error("Invalid response structure from AI");
+        // --- FINAL FIX v3: Using a guard clause for ultimate type safety ---
+        if (!candidate || !candidate.content || !Array.isArray(candidate.content.parts) || candidate.content.parts.length === 0) {
+            throw new Error("Invalid response structure from AI");
         }
+
+        // Now TypeScript is 100% sure candidate and its properties are defined.
+        const text = candidate.content.parts[0].text || '';
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            return { text };
+        }
+
     } catch (error) {
         console.error("Error fetching from Gemini API:", error);
         throw new Error("Failed to get response from AI");
