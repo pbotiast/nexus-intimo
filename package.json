@@ -6,16 +6,12 @@
   "type": "module",
 "scripts": {
   "dev": "vite",
+  "build:frontend": "vite build",
+  "build:server": "tsc server.ts --outDir dist",
+  "build": "npm run build:frontend && npm run build:server",
+  "start": "node dist/server.js",
   "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-  "preview": "vite preview",
-  "build": "vite build"
-},
-"scripts:server": {
-  "dev": "concurrently \"nodemon --watch src/server --exec ts-node src/server/index.ts\" \"vite\"",
-  "build": "esbuild src/server/index.ts --bundle --outfile=dist/server.js --platform=node --target=node18 --external:dotenv --external:@google/genai",
-  "start:dev": "nodemon --watch dist/server.js --exec node dist/server.js",
-  "start:prod": "node dist/server.js",
-  "start": "node dist/server.js"
+  "preview": "vite preview"
 },
   "author": "World-Class Senior Frontend Engineer",
   "license": "UNLICENSED",
