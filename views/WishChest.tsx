@@ -5,6 +5,8 @@ import { ChestIcon, KeyIcon } from '../components/Icons';
 import Modal from '../components/Modal';
 import FeedbackWidget from '../components/FeedbackWidget';
 import { useAiPreferences } from '../hooks/useAiPreferences';
+import Loader from '../components/Loader';
+import { showInfoModal } from '../components/InfoModal';
 
 const WishChest: React.FC = () => {
     const { coupleData, api } = useCouple();
@@ -12,6 +14,8 @@ const WishChest: React.FC = () => {
     const [revealedWish, setRevealedWish] = useState<Wish | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isAdding, setIsAdding] = useState(false);
+    const [isRevealing, setIsRevealing] = useState(false);
 
     const { recordFeedback } = useAiPreferences();
 
@@ -23,34 +27,41 @@ const WishChest: React.FC = () => {
             setError('El deseo no puede estar vacío.');
             return;
         }
+        setIsAdding(true);
+        setError(null);
         try {
             await api.addWish({ text: newWishText.trim() });
             setNewWishText('');
-            setError(null);
         } catch (e: any) {
             setError(e.message);
+        } finally {
+            setIsAdding(false);
         }
     };
 
     const handleRevealWish = async () => {
         if (wishes.length === 0) {
-            alert('El cofre está vacío. ¡Añadid primero vuestros deseos!');
+            showInfoModal('Cofre Vacío', 'El cofre está vacío. ¡Añadid primero vuestros deseos para poder desvelarlos!');
             return;
         }
-        if (keys > 0) {
-            try {
-                const wishToReveal = await api.revealWish();
-                if (wishToReveal) {
-                    setRevealedWish(wishToReveal);
-                    setIsModalOpen(true);
-                } else {
-                     alert('No se pudo revelar un deseo. ¿Quizás alguien ya lo hizo?');
-                }
-            } catch (e: any) {
-                alert(e.message);
+        if (keys <= 0) {
+            showInfoModal('¡Sin Llaves!', 'Necesitáis una Llave de la Confianza para abrir el cofre. Ganad llaves completando misiones y actividades en la app.');
+            return;
+        }
+        
+        setIsRevealing(true);
+        try {
+            const wishToReveal = await api.revealWish();
+            if (wishToReveal) {
+                setRevealedWish(wishToReveal);
+                setIsModalOpen(true);
+            } else {
+                 showInfoModal('Algo fue mal', 'No se pudo revelar un deseo. ¿Quizás alguien ya lo hizo o no quedan deseos?');
             }
-        } else {
-            alert('¡Necesitáis una Llave de la Confianza para abrir el cofre! Ganad llaves completando actividades en la app.');
+        } catch (e: any) {
+             showInfoModal('Error', e.message);
+        } finally {
+            setIsRevealing(false);
         }
     };
 
@@ -78,13 +89,15 @@ const WishChest: React.FC = () => {
                         placeholder="Ej: 'Me excita la idea de que me vendes los ojos...'"
                         rows={4}
                         className="w-full bg-brand-deep-purple border border-brand-muted/50 rounded-lg p-3 text-brand-light focus:ring-2 focus:ring-brand-accent transition"
+                        disabled={isAdding}
                     />
                     {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
                     <button
                         onClick={handleAddWish}
-                        className="mt-4 w-full bg-brand-accent text-white font-bold py-3 px-6 rounded-lg hover:bg-pink-600 transition duration-300"
+                        disabled={isAdding}
+                        className="mt-4 w-full bg-brand-accent text-white font-bold py-3 px-6 rounded-lg hover:bg-pink-600 transition duration-300 disabled:bg-gray-600 flex items-center justify-center"
                     >
-                        Guardar Deseo en el Cofre
+                        {isAdding ? <Loader text="" /> : 'Guardar Deseo en el Cofre'}
                     </button>
                 </div>
 
@@ -95,11 +108,10 @@ const WishChest: React.FC = () => {
                      <p className="text-brand-muted mb-6 font-bold">{wishes.length} {wishes.length === 1 ? 'deseo esperando' : 'deseos esperando'} a ser descubiertos.</p>
                      <button
                         onClick={handleRevealWish}
-                        disabled={keys === 0 || wishes.length === 0}
+                        disabled={keys === 0 || wishes.length === 0 || isRevealing}
                         className="w-full bg-yellow-500 text-brand-deep-purple font-bold py-3 px-6 rounded-lg hover:bg-yellow-400 transition duration-300 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                        <KeyIcon className="w-5 h-5"/>
-                        Usar una Llave y Abrir el Cofre
+                        {isRevealing ? <Loader text="" /> : <><KeyIcon className="w-5 h-5"/> Usar una Llave y Abrir el Cofre</>}
                     </button>
                 </div>
             </div>

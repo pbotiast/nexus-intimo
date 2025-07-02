@@ -73,6 +73,18 @@ const Adventures: React.FC = () => {
         }
     };
 
+    const generateAdventureApiCall = async (style: AdventureStyle, coords?: { latitude: number; longitude: number }) => {
+        try {
+            const result = await api.generateRealWorldAdventure({ coords, style });
+            setRealWorldAdventure(result);
+        } catch (err: any) {
+            setRwaError(err.message || "No se pudo generar la aventura.");
+        } finally {
+            setIsLoadingRWA(false);
+            setSelectedStyle(null);
+        }
+    };
+
     const handleGenerateRealWorldAdventure = (style: AdventureStyle) => {
         setIsLoadingRWA(true);
         setRwaError(null);
@@ -80,32 +92,23 @@ const Adventures: React.FC = () => {
         setSelectedStyle(style);
 
         if (!navigator.geolocation) {
-            setRwaError("La geolocalización no está soportada por tu navegador.");
-            setIsLoadingRWA(false);
+            setRwaError("La geolocalización no está soportada. Generando una aventura genérica.");
+            generateAdventureApiCall(style);
             return;
         }
 
         navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                try {
-                    const { latitude, longitude } = position.coords;
-                    const result = await api.generateRealWorldAdventure({ coords: { latitude, longitude }, style });
-                    setRealWorldAdventure(result);
-                } catch (err: any) {
-                    setRwaError(err.message || "No se pudo generar la aventura.");
-                } finally {
-                    setIsLoadingRWA(false);
-                    setSelectedStyle(null);
-                }
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                generateAdventureApiCall(style, { latitude, longitude });
             },
             (error) => {
-                let message = "Ocurrió un error al obtener la ubicación.";
+                let message = "Ocurrió un error al obtener la ubicación. Generando una aventura genérica.";
                 if (error.code === error.PERMISSION_DENIED) {
-                    message = "Has denegado el permiso de geolocalización. Para usar esta función, por favor, actívalo en los ajustes de tu navegador.";
+                    message = "Has denegado el permiso de geolocalización. Generaremos una aventura genérica en su lugar.";
                 }
                 setRwaError(message);
-                setIsLoadingRWA(false);
-                setSelectedStyle(null);
+                generateAdventureApiCall(style); // Fallback to generic adventure
             }
         );
     };
@@ -147,7 +150,7 @@ const Adventures: React.FC = () => {
                     </div>
                 </div>
                 {isLoadingRWA && <Loader text="Analizando vuestro entorno..."/>}
-                {rwaError && <div className="mt-6 bg-red-900/50 border border-red-700 text-red-200 p-4 rounded-lg text-center">{rwaError}</div>}
+                {rwaError && <div className="mt-6 bg-yellow-900/50 border border-yellow-700 text-yellow-200 p-4 rounded-lg text-center">{rwaError}</div>}
                 {realWorldAdventure && (
                     <div className="mt-8 bg-brand-deep-purple p-4 sm:p-6 rounded-lg animate-fade-in border border-brand-muted/20">
                         <h4 className="text-xl sm:text-2xl font-serif text-brand-accent text-center mb-4">{realWorldAdventure.title}</h4>

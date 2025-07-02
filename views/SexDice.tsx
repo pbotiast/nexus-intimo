@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
 import { PencilIcon } from '../components/Icons';
+import { useCouple } from '../contexts/CoupleContext';
 
 const defaultActions = [
     'Besar apasionadamente', 
@@ -43,33 +44,23 @@ const Dice: React.FC<{ value: string; isRolling: boolean }> = ({ value, isRollin
 };
 
 const SexDice: React.FC = () => {
-  const [actions, setActions] = useState<string[]>(defaultActions);
-  const [bodyParts, setBodyParts] = useState<string[]>(defaultBodyParts);
+  const { coupleData, api } = useCouple();
+
+  const actions = coupleData?.sexDice?.actions?.length ? coupleData.sexDice.actions : defaultActions;
+  const bodyParts = coupleData?.sexDice?.bodyParts?.length ? coupleData.sexDice.bodyParts : defaultBodyParts;
+
   const [dice1, setDice1] = useState<string>('Acción');
   const [dice2, setDice2] = useState<string>('Parte del Cuerpo');
   const [isRolling, setIsRolling] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editableActions, setEditableActions] = useState('');
-  const [editableBodyParts, setEditableBodyParts] = useState('');
+  
+  const [editableActions, setEditableActions] = useState(actions.join('\n'));
+  const [editableBodyParts, setEditableBodyParts] = useState(bodyParts.join('\n'));
 
   useEffect(() => {
-    const savedActions = localStorage.getItem('customActions');
-    const savedBodyParts = localStorage.getItem('customBodyParts');
-    if (savedActions) {
-      const parsedActions = JSON.parse(savedActions);
-      setActions(parsedActions);
-      setEditableActions(parsedActions.join('\n'));
-    } else {
-      setEditableActions(defaultActions.join('\n'));
-    }
-    if (savedBodyParts) {
-      const parsedBodyParts = JSON.parse(savedBodyParts);
-      setBodyParts(parsedBodyParts);
-      setEditableBodyParts(parsedBodyParts.join('\n'));
-    } else {
-      setEditableBodyParts(defaultBodyParts.join('\n'));
-    }
-  }, []);
+    setEditableActions(actions.join('\n'));
+    setEditableBodyParts(bodyParts.join('\n'));
+  }, [actions, bodyParts]);
 
   const rollDice = () => {
     setIsRolling(true);
@@ -78,8 +69,8 @@ const SexDice: React.FC = () => {
   useEffect(() => {
     if (isRolling) {
       const timer = setTimeout(() => {
-        setDice1(getRandomItem(actions.length > 0 ? actions : [' ']));
-        setDice2(getRandomItem(bodyParts.length > 0 ? bodyParts : [' ']));
+        setDice1(getRandomItem(actions));
+        setDice2(getRandomItem(bodyParts));
         setIsRolling(false);
       }, 1000);
       return () => clearTimeout(timer);
@@ -89,21 +80,15 @@ const SexDice: React.FC = () => {
   const handleSaveCustomLists = () => {
     const newActions = editableActions.split('\n').map(s => s.trim()).filter(Boolean);
     const newBodyParts = editableBodyParts.split('\n').map(s => s.trim()).filter(Boolean);
-    setActions(newActions);
-    setBodyParts(newBodyParts);
-    localStorage.setItem('customActions', JSON.stringify(newActions));
-    localStorage.setItem('customBodyParts', JSON.stringify(newBodyParts));
+    api.updateSexDice({ actions: newActions, bodyParts: newBodyParts });
     setIsModalOpen(false);
   };
 
   const handleRestoreDefaults = () => {
-    setActions(defaultActions);
-    setBodyParts(defaultBodyParts);
     setEditableActions(defaultActions.join('\n'));
     setEditableBodyParts(defaultBodyParts.join('\n'));
-    localStorage.removeItem('customActions');
-    localStorage.removeItem('customBodyParts');
-  }
+    api.updateSexDice({ actions: defaultActions, bodyParts: defaultBodyParts });
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center">
@@ -126,7 +111,7 @@ const SexDice: React.FC = () => {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <h3 className="text-2xl font-serif font-bold text-brand-light mb-4">Personalizar Dados</h3>
-        <p className="text-brand-muted mb-6">Añade o edita las opciones. Una por línea.</p>
+        <p className="text-brand-muted mb-6">Añade o edita las opciones. Una por línea. Estos cambios se sincronizarán con tu pareja.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="actions" className="block text-sm font-medium text-brand-light mb-1">Acciones</label>

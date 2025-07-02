@@ -6,6 +6,7 @@ import Loader from '../components/Loader';
 import FeedbackWidget from '../components/FeedbackWidget';
 import { useAiPreferences } from '../hooks/useAiPreferences';
 import { openPassportModal } from '../components/PassportModal';
+import { showConfirmModal } from '../components/ConfirmModal';
 
 const allAchievements: Omit<Achievement, 'isUnlocked'>[] = [
     { id: 'first_stamp', title: 'Primer Paso', description: 'Has añadido vuestro primer recuerdo al pasaporte. ¡El viaje ha comenzado!' },
@@ -28,9 +29,11 @@ const PassionPassport: React.FC = () => {
     const { recordFeedback } = useAiPreferences();
 
     const handleDelete = (id: string) => {
-        if(window.confirm('¿Seguro que quieres borrar este recuerdo para siempre?')) {
-            api.deleteStamp(id);
-        }
+        showConfirmModal(
+            '¿Confirmar borrado?', 
+            'Este recuerdo se eliminará para siempre. Esta acción no se puede deshacer.',
+            () => api.deleteStamp(id)
+        );
     };
 
     const achievements: Achievement[] = useMemo(() => allAchievements.map(ach => ({
@@ -46,7 +49,7 @@ const PassionPassport: React.FC = () => {
                 default: return false;
             }
         }
-    })), []);
+    })), [stamps]);
 
     const handleGenerateChronicle = async () => {
         setIsChronicleLoading(true);

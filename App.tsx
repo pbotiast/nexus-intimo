@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -21,6 +22,8 @@ import BodyMap from './views/BodyMap';
 import SoulMirror from './views/SoulMirror';
 import TandemJournal from './views/TandemJournal';
 import { CoupleProvider } from './contexts/CoupleContext';
+import InfoModal from './components/InfoModal';
+import ConfirmModal from './components/ConfirmModal';
 
 const App: React.FC = () => {
   return (
@@ -49,6 +52,8 @@ const App: React.FC = () => {
                 </Routes>
               </main>
               <PassportModal />
+              <InfoModal />
+              <ConfirmModal />
             </div>
           </EmpathyEngineProvider>
       </CoupleProvider>

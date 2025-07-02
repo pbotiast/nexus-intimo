@@ -7,6 +7,7 @@ import { HeartIcon, BookOpenIcon, UsersIcon, PuzzlePieceIcon, FireIcon, MapIcon,
 import FeedbackWidget from '../components/FeedbackWidget';
 import { useAiPreferences } from '../hooks/useAiPreferences';
 import { useCouple } from '../contexts/CoupleContext';
+import { showInfoModal } from '../components/InfoModal';
 
 const features = [
   {
@@ -167,7 +168,7 @@ const Home: React.FC = () => {
   const handleClaimMissionReward = async () => {
     if (storedMission && !storedMission.claimed) {
         await api.claimMissionReward();
-        alert('¡Habéis ganado una Llave de la Confianza! Usadla en el Cofre de los Deseos.');
+        showInfoModal('¡Recompensa Obtenida!', 'Habéis ganado una Llave de la Confianza. Usadla en el Cofre de los Deseos para desvelar un secreto.');
     }
   }
 

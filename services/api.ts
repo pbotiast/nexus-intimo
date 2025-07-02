@@ -1,6 +1,7 @@
 import { StoryParams, GeneratedStory, PersonalChallenge, CoupleChallenge, IcebreakerQuestion, RoleplayScenario, DateIdea, GameChallenge, IntimateRitual, RitualEnergy, AiPreferences, WeeklyMission, RealWorldAdventure, PassionStamp, IntimateChronicle, AdventureStyle, SoulReflection, PassionCompassScores, DailySpark, ChatMessage, CoupleData, BodyMark, TandemEntry, StampData, PreferenceCategory, Feedback, Wish } from '../types';
 
-const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '';
+//const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '';
+const API_BASE_URL = 'https://nexus-intimo-api.onrender.com'; // La URL de tu backend en Render
 
 /**
  * Función genérica para realizar peticiones a la API del backend.
@@ -16,16 +17,20 @@ async function fetchFromApi<TResponse>(endpoint: string, options: RequestInit = 
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error desconocido en el servidor.' }));
+        const errorData = await response.json().catch(() => ({ message: `Error ${response.status}: ${response.statusText}` }));
         throw new Error(errorData.message || 'No se pudo completar la solicitud.');
     }
-    // Handle cases with no JSON response body
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-        return response.json();
-    } else {
-        return {} as TResponse;
+    
+    if (response.status === 204) { // No Content
+        return null as TResponse;
     }
+
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+        return response.json();
+    }
+    
+    throw new Error('La respuesta del servidor no contenía JSON como se esperaba.');
 }
 
 // --- Pairing and Session ---
@@ -75,7 +80,7 @@ export const generateDateIdea = createCoupleApiCall<{ category: string }, DateId
 export const generateGameChallenge = createCoupleApiCall<{ type: GameChallenge['type'] }, GameChallenge>('game-challenge');
 export const generateIntimateRitual = createCoupleApiCall<{ energy: RitualEnergy }, IntimateRitual>('intimate-ritual');
 export const generateWeeklyMission = createCoupleApiCall<{}, { success: boolean }>('weekly-mission');
-export const generateRealWorldAdventure = createCoupleApiCall<{ coords: { latitude: number, longitude: number }, style: AdventureStyle }, RealWorldAdventure>('real-world-adventure');
+export const generateRealWorldAdventure = createCoupleApiCall<{ coords?: { latitude: number, longitude: number }, style: AdventureStyle }, RealWorldAdventure>('real-world-adventure');
 export const generateIntimateChronicle = createCoupleApiCall<{}, IntimateChronicle>('intimate-chronicle');
 export const generateSoulMirrorReflection = createCoupleApiCall<{ scores: PassionCompassScores }, SoulReflection>('soul-mirror-reflection');
 export const generateDailySpark = createCoupleApiCall<{ scores: PassionCompassScores }, DailySpark>('daily-spark');
@@ -84,12 +89,13 @@ export const continueNexoChat = createCoupleApiCall<{ messages: ChatMessage[] },
 // --- State Mutation Functions ---
 export const claimMissionReward = createCoupleApiCall<{}, { success: boolean }>('claim-mission-reward');
 export const addStamp = createCoupleApiCall<{ stampData: StampData }, { success: boolean }>('stamps');
-export const deleteStamp = (coupleId: string, stampId: string) => fetchFromApi(`/api/couples/${coupleId}/stamps/${stampId}`, { method: 'DELETE' });
+export const deleteStamp = (coupleId: string, stampId: string): Promise<{ success: boolean }> => fetchFromApi(`/api/couples/${coupleId}/stamps/${stampId}`, { method: 'DELETE' });
 export const addWish = createCoupleApiCall<{ text: string }, { success: boolean }>('wishes');
 export const revealWish = createCoupleApiCall<{}, Wish | null>('wishes/reveal');
 export const updateBodyMarks = createCoupleApiCall<{ marks: BodyMark[] }, { success: boolean }>('body-marks', 'PUT');
 export const generateTandemJournalPrompt = createCoupleApiCall<{}, { success: boolean }>('tandem-journal/prompt');
 export const saveTandemAnswer = createCoupleApiCall<{ partner: 'partner1' | 'partner2', answer: string }, { success: boolean }>('tandem-journal/answer');
 export const recordFeedback = createCoupleApiCall<{ category: PreferenceCategory, value: string, feedback: Feedback }, { success: boolean }>('feedback');
-export const addKey = createCoupleApiCall<{}, {success: true}>('add-key');
+export const addKey = createCoupleApiCall<{}, {success: boolean}>('add-key');
 export const useKey = createCoupleApiCall<{}, {success: boolean}>('use-key');
+export const updateSexDice = createCoupleApiCall<{ actions: string[], bodyParts: string[] }, { success: boolean }>('sex-dice', 'PUT');

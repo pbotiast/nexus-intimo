@@ -25,6 +25,17 @@ const port = process.env.PORT || 3001;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Default Data ---
+const defaultDiceActions = [
+    'Besar apasionadamente', 'Lamer lentamente', 'Morder suavemente', 'Chupar con intensidad',
+    'Acariciar con la lengua', 'Explorar con los dedos', 'Masajear con aceite', 'Susurrar una fantasía sobre',
+    'Desvestir con la boca', 'Dejar una marca de amor', 'Usar un cubito de hielo en', 'Atar suavemente con una prenda'
+];
+const defaultDiceBodyParts = [
+    'Labios', 'Cuello', 'Pezones', 'Pecho', 'Abdomen', 'Nalgas',
+    'Entrepierna', 'Clítoris', 'Pene', 'Vagina', 'Testículos', 'Ano'
+];
+
 // --- Gemini AI Setup ---
 if (!process.env.API_KEY) {
   console.error("CRITICAL: API_KEY environment variable not set. The application will not work.");
@@ -133,6 +144,10 @@ app.post('/api/couples/create', (req: Request, res: Response) => {
         bodyMarks: [],
         tandemEntry: null,
         aiPreferences: {},
+        sexDice: {
+            actions: defaultDiceActions,
+            bodyParts: defaultDiceBodyParts,
+        }
     };
     db.couples[coupleId] = newCoupleData;
     db.pairingCodes[pairingCode] = { coupleId, expires: Date.now() + 5 * 60 * 1000 }; // 5 min expiry
@@ -247,7 +262,7 @@ app.post('/api/couples/:coupleId/roleplay-scenario', createGeneratorEndpoint<{th
 app.post('/api/couples/:coupleId/date-idea', createGeneratorEndpoint<{category: string}, DateIdea>(({category}) => `Genera una idea para una cita original en la categoría: "${category}"...`));
 app.post('/api/couples/:coupleId/game-challenge', createGeneratorEndpoint<{type: GameChallenge['type']}, GameChallenge>(({type}) => `Genera un desafío de juego del tipo: "${type}"...`));
 app.post('/api/couples/:coupleId/intimate-ritual', createGeneratorEndpoint<{energy: RitualEnergy}, IntimateRitual>(({energy}) => `Genera un "Ritual Íntimo" con energía de "${energy}"...`));
-app.post('/api/couples/:coupleId/real-world-adventure', createGeneratorEndpoint<{coords: any, style: AdventureStyle}, RealWorldAdventure>(({coords, style}) => `Genera una "Aventura Espontánea" en latitud ${coords.latitude}, longitud ${coords.longitude} con estilo "${style}"...`));
+app.post('/api/couples/:coupleId/real-world-adventure', createGeneratorEndpoint<{coords?: any, style: AdventureStyle}, RealWorldAdventure>(({coords, style}) => `Genera una "Aventura Espontánea" ${coords ? `cerca de la latitud ${coords.latitude} y longitud ${coords.longitude}` : 'que no dependa de un lugar específico'}, con el siguiente estilo: "${style}". La aventura debe ser realizable en cualquier ciudad.`));
 app.post('/api/couples/:coupleId/intimate-chronicle', createGeneratorEndpoint<{}, IntimateChronicle>((body, coupleData) => `Analiza los siguientes hitos de una pareja y escribe una crónica poética sobre su viaje: ${JSON.stringify(coupleData.stamps)}...`));
 app.post('/api/couples/:coupleId/soul-mirror-reflection', createGeneratorEndpoint<{scores: PassionCompassScores}, SoulReflection>(({scores}, coupleData) => `Analiza la Brújula de la Pasión ${JSON.stringify(scores)} y el historial de la pareja (${JSON.stringify(coupleData.stamps)}) y genera una reflexión inspiradora...`));
 app.post('/api/couples/:coupleId/daily-spark', createGeneratorEndpoint<{scores: PassionCompassScores}, DailySpark>(({scores}, coupleData) => `Genera una "Chispa Diaria" basada en este contexto: ${JSON.stringify(scores)} y sus preferencias ${JSON.stringify(coupleData.aiPreferences)}...`));
@@ -303,7 +318,11 @@ app.delete('/api/couples/:coupleId/stamps/:stampId', createCoupleApiEndpoint(asy
 }));
 
 app.post('/api/couples/:coupleId/wishes', createCoupleApiEndpoint(async (coupleData, body: {text: string}) => {
-    const newWish: Wish = { id: short.generate(), text: body.text, author: 'partner1' };
+    const trimmedText = body.text ? body.text.trim() : '';
+    if (!trimmedText) {
+        throw new Error("El texto del deseo no puede estar vacío.");
+    }
+    const newWish: Wish = { id: short.generate(), text: trimmedText, author: 'partner1' };
     const wishes = [...coupleData.wishes, newWish];
     return [{ success: true }, { wishes }];
 }));
@@ -321,6 +340,17 @@ app.post('/api/couples/:coupleId/wishes/reveal', createCoupleApiEndpoint(async (
 
 app.put('/api/couples/:coupleId/body-marks', createCoupleApiEndpoint(async (coupleData, body: {marks: BodyMark[]}) => {
     return [{ success: true }, { bodyMarks: body.marks }];
+}));
+
+app.put('/api/couples/:coupleId/sex-dice', createCoupleApiEndpoint(async (coupleData, body: { actions: string[], bodyParts: string[] }) => {
+    if (!body || !Array.isArray(body.actions) || !Array.isArray(body.bodyParts)) {
+        throw new Error('Datos inválidos para los dados.');
+    }
+    const sexDice = {
+        actions: body.actions.map(s => String(s).trim()).filter(Boolean),
+        bodyParts: body.bodyParts.map(s => String(s).trim()).filter(Boolean),
+    };
+    return [{ success: true }, { sexDice }];
 }));
 
 app.post('/api/couples/:coupleId/tandem-journal/prompt', createCoupleApiEndpoint(async (coupleData, body) => {

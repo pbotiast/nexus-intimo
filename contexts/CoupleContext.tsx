@@ -136,7 +136,8 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             saveTandemAnswer: createHandler(api.saveTandemAnswer),
             recordFeedback: createHandler(api.recordFeedback),
             addKey: createSimpleHandler(api.addKey),
-            useKey: createSimpleHandler(api.useKey)
+            useKey: createSimpleHandler(api.useKey),
+            updateSexDice: createHandler(api.updateSexDice),
         };
     }, [coupleId]);
 

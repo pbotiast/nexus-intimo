@@ -292,6 +292,10 @@ export interface CoupleData {
   bodyMarks: BodyMark[];
   tandemEntry: TandemEntry | null;
   aiPreferences: AiPreferences;
+  sexDice?: {
+    actions: string[];
+    bodyParts: string[];
+  };
   // Other shared data can be added here
 }
 
@@ -323,20 +327,21 @@ export interface CoupleContextType {
     generateIntimateRitual: (args: { energy: RitualEnergy }) => Promise<IntimateRitual | null>;
     generateWeeklyMission: () => Promise<{ success: boolean }>;
     claimMissionReward: () => Promise<{ success: boolean }>;
-    generateRealWorldAdventure: (args: { coords: { latitude: number; longitude: number }; style: AdventureStyle }) => Promise<RealWorldAdventure | null>;
+    generateRealWorldAdventure: (args: { coords?: { latitude: number; longitude: number }; style: AdventureStyle }) => Promise<RealWorldAdventure | null>;
     generateIntimateChronicle: () => Promise<IntimateChronicle | null>;
     generateSoulMirrorReflection: (args: { scores: PassionCompassScores }) => Promise<SoulReflection | null>;
     generateDailySpark: (args: { scores: PassionCompassScores }) => Promise<DailySpark | null>;
     generateTandemJournalPrompt: () => Promise<{ success: boolean }>;
     continueNexoChat: (args: { messages: ChatMessage[] }) => Promise<{ text: string; } | null>;
-    addStamp: (args: { stampData: StampData }) => Promise<void>;
-    deleteStamp: (id: string) => Promise<void>;
-    addWish: (args: { text: string }) => Promise<void>;
+    addStamp: (args: { stampData: StampData }) => Promise<{ success: boolean }>;
+    deleteStamp: (id: string) => Promise<{ success: boolean }>;
+    addWish: (args: { text: string }) => Promise<{ success: boolean }>;
     revealWish: () => Promise<Wish | null>;
-    updateBodyMarks: (args: { marks: BodyMark[] }) => Promise<void>;
-    saveTandemAnswer: (args: { partner: 'partner1' | 'partner2'; answer: string }) => Promise<void>;
-    recordFeedback: (args: { category: PreferenceCategory; value: string; feedback: Feedback }) => Promise<void>;
-    addKey: () => Promise<void>;
-    useKey: () => Promise<boolean>;
+    updateBodyMarks: (args: { marks: BodyMark[] }) => Promise<{ success: boolean }>;
+    saveTandemAnswer: (args: { partner: 'partner1' | 'partner2'; answer: string }) => Promise<{ success: boolean }>;
+    recordFeedback: (args: { category: PreferenceCategory; value: string; feedback: Feedback }) => Promise<{ success: boolean }>;
+    addKey: () => Promise<{ success: boolean }>;
+    useKey: () => Promise<{ success: boolean }>;
+    updateSexDice: (args: { actions: string[]; bodyParts: string[] }) => Promise<{ success: boolean }>;
   };
 }
