@@ -4,15 +4,19 @@
   "description": "An application for couples and individuals to explore intimacy and connection.",
   "main": "dist/server.js",
   "type": "module",
-  "scripts": {
-    "build:frontend": "esbuild index.tsx --bundle --outfile=dist/bundle.js --minify --sourcemap --jsx=automatic",
-    "copy-assets": "cp public/index.html dist/ && cp public/sw.js dist/",
-    "build": "npm run build:frontend && npm run copy-assets && tsc",
-    "start": "node dist/server.js",
-    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
-    "dev:backend": "nodemon server.ts",
-    "dev:frontend": "esbuild index.tsx --bundle --outfile=public/bundle.js --watch --jsx=automatic --servedir=public"
-  },
+"scripts": {
+  "dev": "vite",
+  "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+  "preview": "vite preview",
+  "build": "vite build"
+},
+"scripts:server": {
+  "dev": "concurrently \"nodemon --watch src/server --exec ts-node src/server/index.ts\" \"vite\"",
+  "build": "esbuild src/server/index.ts --bundle --outfile=dist/server.js --platform=node --target=node18 --external:dotenv --external:@google/genai",
+  "start:dev": "nodemon --watch dist/server.js --exec node dist/server.js",
+  "start:prod": "node dist/server.js",
+  "start": "node dist/server.js"
+},
   "author": "World-Class Senior Frontend Engineer",
   "license": "UNLICENSED",
   "dependencies": {

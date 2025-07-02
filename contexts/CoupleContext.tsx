@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import * as api from '../services/api';
-import { CoupleContextType, CoupleData, StampData, PreferenceCategory, Feedback, Wish, BodyMark } from '../types';
+import { CoupleContextType, CoupleData, StampData, PreferenceCategory, Feedback, Wish, BodyMark, StoryParams, GeneratedStory, PersonalChallenge } from '../types';
 import PairingModal from '../components/PairingModal';
 import Loader from '../components/Loader';
 
@@ -36,7 +36,12 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     useEffect(() => {
         if (!coupleId) return;
 
-        const events = new EventSource(`${(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : ''}/api/couples/${coupleId}/events`);
+        // Ensure the API base URL is determined correctly for production and development
+        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+            ? 'http://localhost:3001' 
+            : ''; // In production, it's a relative path
+
+        const events = new EventSource(`${API_BASE_URL}/api/couples/${coupleId}/events`);
         
         events.onmessage = (event) => {
             const parsedEvent = JSON.parse(event.data);
@@ -47,7 +52,6 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
         events.onerror = (err) => {
             console.error('SSE Error:', err);
-            // Optional: implement retry logic or notify user
             events.close();
         };
 
@@ -95,8 +99,6 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setPairingCode(null);
     }, [setCoupleId]);
     
-    // --- API Methods for components ---
-    // This wraps the api calls with the coupleId
     const coupleApi = useMemo(() => {
         const createHandler = <T, U>(apiFn: (coupleId: string, args: T) => Promise<U>) => {
             return (args: T) => {
@@ -104,7 +106,7 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 return apiFn(coupleId, args);
             };
         };
-         const createSimpleHandler = <U,>(apiFn: (coupleId: string) => Promise<U>) => {
+        const createSimpleHandler = <U,>(apiFn: (coupleId: string) => Promise<U>) => {
             return () => {
                 if (!coupleId) throw new Error("Not paired");
                 return apiFn(coupleId);
@@ -127,7 +129,13 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             generateSoulMirrorReflection: createHandler(api.generateSoulMirrorReflection),
             generateDailySpark: createHandler(api.generateDailySpark),
             continueNexoChat: createHandler(api.continueNexoChat),
-            addStamp: createHandler(api.addStamp),
+            // --- FIX STARTS HERE ---
+            // Wrap the api.addStamp call in a new async function that returns void
+            addStamp: async (args: StampData) => {
+                if (!coupleId) throw new Error("Not paired");
+                await api.addStamp(coupleId, args); // We call the function but don't return its value
+            },
+            // --- FIX ENDS HERE ---
             deleteStamp: (id: string) => coupleId ? api.deleteStamp(coupleId, id) : Promise.reject("Not paired"),
             addWish: createHandler(api.addWish),
             revealWish: createSimpleHandler(api.revealWish),
