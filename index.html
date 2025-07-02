@@ -9,7 +9,16 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- FIX: Path now correctly points to index.tsx in the project root -->
-    <script type="module" src="/index.tsx"></script>
+    <!-- FIX: Using a relative path is more robust for build environments -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
+
+<script>
+  // This script is used to handle the redirection to the correct path
+  // when the app is served from a subdirectory.
+  const path = window.location.pathname;
+  if (path !== '/' && !path.startsWith('/nexus-íntimo')) {
+    window.location.href = '/nexus-íntimo' + path;
+  }
+</script>
