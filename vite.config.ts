@@ -11,7 +11,8 @@ export default defineConfig({
       '@src': path.resolve(__dirname, './src'),
       '@components': path.resolve(__dirname, './src/components'),
       '@contexts': path.resolve(__dirname, './src/contexts'),
-      '@views': path.resolve(__dirname, './views'), // Alias para el directorio de vistas
+      '@/views': path.resolve(__dirname, './views'), // Alias actualizado para el directorio de vistas
     },
   },
 });
+  
