@@ -1,4 +1,4 @@
-// server.ts - VERSIÓN FINAL CORREGIDA PARA TYPESCRIPT ESTRICTO
+// server.ts - VERSIÓN FINAL CON CORRECCIONES PARA TYPESCRIPT ESTRICTO
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -56,7 +56,6 @@ const getSession = (req: Request, res: Response, next: NextFunction) => {
 
 async function generateAndRespond(res: Response, prompt: string) {
     try {
-        console.log("Enviando prompt a la IA:", prompt.substring(0, 200) + "...");
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         const cleanedText = text.replace(/```json\n|```/g, '').trim();
@@ -85,12 +84,14 @@ app.post('/api/couples/join', (req, res) => {
         return res.status(404).json({ message: 'Código no válido o expirado.' });
     }
     const coupleId = pairingCodes[code];
-    delete pairingCodes[code];
-    res.json({ coupleId, coupleData: coupleSessions[coupleId].sharedData });
-});
+    const session = coupleSessions[coupleId];
 
-app.get('/api/couples/:coupleId/data', getSession, (req, res) => {
-    res.json(res.locals.session.sharedData);
+    if (!session) {
+        return res.status(404).json({ message: 'La sesión asociada al código no existe.' });
+    }
+
+    delete pairingCodes[code];
+    res.json({ coupleId, coupleData: session.sharedData });
 });
 
 app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
@@ -105,12 +106,15 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 });
 
 // --- RUTAS DE GENERACIÓN POR IA ---
+// (Estas rutas son de ejemplo, puedes añadir las que necesites)
 
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     const { params } = req.body;
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
     generateAndRespond(res, prompt);
 });
+
+// --- RUTAS DE GESTIÓN DE DATOS (SIN IA) ---
 
 app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) => {
     const prompt = `Genera una pregunta profunda para que una pareja la responda en un diario compartido. Formato JSON: {"prompt": "string"}`;
@@ -120,7 +124,6 @@ app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) =
         const cleanedText = text.replace(/```json\n|```/g, '').trim();
         const jsonResponse = JSON.parse(cleanedText);
         res.locals.session.sharedData.tandemEntry = { id: new Date().toISOString(), prompt: jsonResponse.prompt, answer1: null, answer2: null };
-        // CORRECCIÓN TS2345: Usar el `id` de la sesión, que es seguro.
         sendUpdateToCouple(res.locals.session.id);
         res.status(200).json({ success: true });
     } catch (e) {
@@ -128,43 +131,17 @@ app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) =
     }
 });
 
-// --- RUTAS DE GESTIÓN DE DATOS (SIN IA) ---
-
-app.post('/api/couples/:coupleId/stamps', getSession, (req, res) => {
-    const { stampData } = req.body;
-    const newStamp = { ...stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) };
-    res.locals.session.sharedData.stamps.push(newStamp);
-    // CORRECCIÓN TS2345: Usar el `id` de la sesión, que es seguro.
-    sendUpdateToCouple(res.locals.session.id);
-    res.status(201).json({ success: true });
-});
-
-app.post('/api/couples/:coupleId/wishes', getSession, (req, res) => {
-    const { text } = req.body;
-    const newWish = { text, id: new Date().toISOString(), author: 'partner1' };
-    res.locals.session.sharedData.wishes.push(newWish);
-    // CORRECCIÓN TS2345: Usar el `id` de la sesión, que es seguro.
-    sendUpdateToCouple(res.locals.session.id);
-    res.status(201).json({ success: true });
-});
-
-app.post('/api/couples/:coupleId/keys/add', getSession, (req, res) => {
-    res.locals.session.sharedData.keys += 1;
-    // CORRECCIÓN TS2345: Usar el `id` de la sesión, que es seguro.
-    sendUpdateToCouple(res.locals.session.id);
-    res.status(200).json({ success: true, keys: res.locals.session.sharedData.keys });
-});
-
 app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
     const { partner, answer } = req.body;
     const entry = res.locals.session.sharedData.tandemEntry;
+    
     // CORRECCIÓN TS2532: Comprobar que `entry` no es nulo antes de usarlo.
     if (entry) {
         if (partner === 'partner1') entry.answer1 = answer;
         if (partner === 'partner2') entry.answer2 = answer;
-        // CORRECCIÓN TS2345: Usar el `id` de la sesión, que es seguro.
         sendUpdateToCouple(res.locals.session.id);
     }
+    
     res.status(200).json({ success: true });
 });
 
