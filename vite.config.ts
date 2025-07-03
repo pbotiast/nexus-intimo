@@ -1,10 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
 // https://vitejs.dev/config/
-// Esta configuración simplificada es más robusta para entornos de despliegue.
-// Elimina la carga de variables de entorno del lado del cliente, que era un 
-// riesgo de seguridad y la causa de los problemas de construcción.
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Esta opción elimina toda ambigüedad para el constructor de Vite,
+    // especificando explícitamente cuál es el archivo de entrada principal.
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+      },
+    },
+  },
 })

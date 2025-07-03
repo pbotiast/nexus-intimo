@@ -9,7 +9,12 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- This relative path will now be correctly resolved with the fixed tsconfig.json -->
+    <!-- Esta ruta relativa estándar funcionará con la configuración explícita de Vite -->
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>
+<script>
+  // Este script se ejecuta antes de que React se monte
+  // Aquí puedes agregar cualquier lógica de inicialización si es necesario
+  console.log('Nexus Íntimo - Aplicación para conectar con tu pareja');
+</script>
