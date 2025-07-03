@@ -1,4 +1,4 @@
-// server.ts - VERSIÓN FINAL Y CORREGIDA PARA PASAR LA COMPILACIÓN DE TYPESCRIPT
+// server.ts - VERSIÓN FINAL CON CORRECCIONES A PRUEBA DE BALAS
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -28,12 +28,12 @@ interface CoupleSession {
         tandemEntry: { id: string; prompt: string; answer1: string | null; answer2: string | null } | null;
         keys: number;
         sexDice: { actions: string[]; bodyParts: string[] };
-        aiPreferences: any; // Considerar tipado más específico si la estructura es conocida
-        weeklyMission: { title: string; description: string } | null; 
+        aiPreferences: any; 
+        weeklyMission: { title: string; description: string; steps: Array<{ title: string; description: string; type: string }> } | null; // Definido más específicamente
     };
 }
-const coupleSessions: Record<string, CoupleSession> = {};
-const pairingCodes: Record<string, string> = {};
+const coupleSessions: Record<string, CoupleSession> = {}; // { 'ABCDEF': 'coupleId123' }
+const pairingCodes: Record<string, string> = {}; // { 'ABCDEF': 'coupleId123' }
 
 // --- Configuración de Gemini ---
 const API_KEY = process.env.API_KEY;
@@ -42,7 +42,7 @@ if (!API_KEY) {
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Modelo corregido
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Modelo corregido a 1.5
 
 // --- Funciones de Ayuda y Middleware ---
 const sendUpdateToCouple = (coupleId: string) => {
@@ -97,22 +97,28 @@ app.post('/api/couples', (req, res) => {
 app.post('/api/couples/join', (req, res) => {
     const { code } = req.body;
 
-    // CORRECCIÓN DEFINITIVA PARA TS2538 EN pairingCodes[code]
-    // Validamos que 'code' es una string Y que existe como propiedad en 'pairingCodes'.
-    // Esto asegura a TypeScript que pairingCodes[code] NO será undefined.
-    if (typeof code === 'string' && Object.prototype.hasOwnProperty.call(pairingCodes, code)) {
-        const coupleId = pairingCodes[code]; // Ahora TypeScript sabe que coupleId es 'string'
-        
-        const session = coupleSessions[coupleId];
-        if (!session) {
-            return res.status(404).json({ message: 'La sesión asociada al código ya no existe.' });
-        }
-
-        delete pairingCodes[code];
-        res.json({ coupleId, coupleData: session.sharedData });
-    } else {
-        return res.status(404).json({ message: 'Código no válido, expirado o en formato incorrecto.' });
+    // CORRECCIÓN FINAL PARA TS2538 EN pairingCodes[code]
+    // 1. Validar que 'code' es una string.
+    if (typeof code !== 'string') {
+        return res.status(400).json({ message: 'Código no proporcionado o en formato incorrecto.' });
     }
+    
+    // 2. Obtener el coupleId de forma que TypeScript esté 100% seguro.
+    // Usamos una asignación a una variable local después de una comprobación explícita.
+    let foundCoupleId: string;
+    if (code in pairingCodes) {
+        foundCoupleId = pairingCodes[code]; // TypeScript ahora sabe que es una string.
+    } else {
+        return res.status(404).json({ message: 'Código no válido o expirado.' });
+    }
+    
+    const session = coupleSessions[foundCoupleId]; // Usamos la variable local segura
+    if (!session) {
+        return res.status(404).json({ message: 'La sesión asociada al código ya no existe.' });
+    }
+
+    delete pairingCodes[code]; // Elimina el código de emparejamiento después de usarlo
+    res.json({ coupleId: foundCoupleId, coupleData: session.sharedData });
 });
 
 
@@ -218,14 +224,19 @@ app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) =
         const cleanedText = text.replace(/```json\n|```/g, '').trim();
         const jsonResponse = JSON.parse(cleanedText);
 
-        // CORRECCIÓN PARA TS2538 en jsonResponse.prompt (similar al de la línea 114 original)
-        if (typeof jsonResponse.prompt !== 'string') {
-            throw new Error("La respuesta de la IA para el prompt del diario no es una cadena.");
+        // CORRECCIÓN PARA jsonResponse.prompt (ahora más robusta)
+        if (typeof jsonResponse === 'object' && jsonResponse !== null && typeof jsonResponse.prompt === 'string') {
+            res.locals.session.sharedData.tandemEntry = { 
+                id: new Date().toISOString(), 
+                prompt: jsonResponse.prompt, 
+                answer1: null, 
+                answer2: null 
+            };
+            sendUpdateToCouple(res.locals.session.id);
+            res.status(200).json({ success: true });
+        } else {
+            throw new Error("La respuesta de la IA no contiene un 'prompt' válido o no es un JSON esperado.");
         }
-
-        res.locals.session.sharedData.tandemEntry = { id: new Date().toISOString(), prompt: jsonResponse.prompt, answer1: null, answer2: null };
-        sendUpdateToCouple(res.locals.session.id);
-        res.status(200).json({ success: true });
     } catch (e) {
         console.error("Error al generar pregunta del diario:", e);
         res.status(500).json({ message: "Error al generar pregunta." });
@@ -320,13 +331,17 @@ app.post('/api/couples/:coupleId/feedback', getSession, (req, res) => {
 });
 
 app.post('/api/couples/:coupleId/weekly-mission', getSession, async (req, res) => {
-    // Genera la misión (puedes usar la IA o un generador local)
     const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
     try {
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         const cleanedText = text.replace(/```json\n|```/g, '').trim();
         const mission = JSON.parse(cleanedText);
+
+        // Asegurarse de que el formato de 'mission' es el esperado
+        if (typeof mission !== 'object' || mission === null || typeof mission.title !== 'string' || !Array.isArray(mission.steps)) {
+            throw new Error("Formato de misión semanal inesperado de la IA.");
+        }
 
         const currentWeek = Math.ceil((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (86400000 * 7));
 
@@ -338,21 +353,24 @@ app.post('/api/couples/:coupleId/weekly-mission', getSession, async (req, res) =
         sendUpdateToCouple(res.locals.session.id);
         res.status(200).json({ success: true });
     } catch (e) {
+        console.error("Error al generar la misión semanal:", e);
         res.status(500).json({ message: "Error al generar la misión semanal." });
     }
 });
 
 app.post('/api/couples/:coupleId/claim-mission-reward', getSession, (req, res) => {
-    const mission = res.locals.session.sharedData.weeklyMission;
-    if (mission && !mission.claimed) {
+    const missionData = res.locals.session.sharedData.weeklyMission;
+    // Asegurarse de que missionData y missionData.claimed existen
+    if (missionData && typeof missionData === 'object' && !missionData.claimed) {
         res.locals.session.sharedData.keys += 1; // Añade una llave
-        mission.claimed = true; // Marca como reclamada
+        missionData.claimed = true; // Marca como reclamada
         sendUpdateToCouple(res.locals.session.id);
         res.status(200).json({ success: true });
     } else {
         res.status(400).json({ success: false, message: 'Misión no encontrada o ya reclamada.' });
     }
 });
+
 
 // --- SERVIR ARCHIVOS ESTÁTICOS Y CIERRE ---
 
@@ -371,4 +389,3 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
-        
