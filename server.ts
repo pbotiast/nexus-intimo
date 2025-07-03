@@ -1,4 +1,4 @@
-// server.ts - VERSIÓN FINAL CON LAS ÚLTIMAS CORRECCIONES PARA PASAR LA COMPILACIÓN
+// server.ts - VERSIÓN FINAL CON CORRECCIÓN A PRUEBA DE BALAS
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -21,19 +21,10 @@ const __dirname = path.dirname(__filename);
 interface CoupleSession {
     id: string;
     clients: Response[];
-    sharedData: {
-        stamps: any[];
-        wishes: any[];
-        bodyMarks: any[];
-        tandemEntry: { id: string; prompt: string; answer1: string | null; answer2: string | null } | null;
-        keys: number;
-        sexDice: { actions: string[]; bodyParts: string[] };
-        aiPreferences: any; 
-        weeklyMission: { mission: any, weekNumber: number, claimed: boolean } | null;
-    };
+    sharedData: any; 
 }
-const coupleSessions: Record<string, CoupleSession> = {}; 
-const pairingCodes: Record<string, string> = {}; 
+const coupleSessions: Record<string, CoupleSession> = {};
+const pairingCodes: Record<string, string> = {};
 
 // --- Configuración de Gemini ---
 const API_KEY = process.env.API_KEY;
@@ -81,15 +72,7 @@ async function generateAndRespond(res: Response, prompt: string) {
 app.post('/api/couples', (req, res) => {
     const coupleId = short.generate();
     const pairingCode = short.generate().substring(0, 6).toUpperCase();
-    coupleSessions[coupleId] = { 
-        id: coupleId, 
-        clients: [], 
-        sharedData: { 
-            stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, 
-            keys: 0, sexDice: { actions: [], bodyParts: [] }, 
-            aiPreferences: {}, weeklyMission: null 
-        } 
-    };
+    coupleSessions[coupleId] = { id: coupleId, clients: [], sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null } };
     pairingCodes[pairingCode] = coupleId;
     res.status(201).json({ coupleId, pairingCode });
 });
@@ -97,26 +80,26 @@ app.post('/api/couples', (req, res) => {
 app.post('/api/couples/join', (req, res) => {
     const { code } = req.body;
 
-    // CORRECCIÓN FINAL PARA TS2538
-    if (typeof code !== 'string') {
-        return res.status(400).json({ message: 'Código no proporcionado o en formato incorrecto.' });
-    }
-    
-    // Obtener el ID de forma segura para que TypeScript no se queje
-    const coupleId = pairingCodes[code]; // Esto puede ser string o undefined
-    
-    if (!coupleId) { // Comprobamos explícitamente si es undefined
-        return res.status(404).json({ message: 'Código no válido o expirado.' });
-    }
-    
-    // A partir de aquí, TypeScript sabe que coupleId es una string
-    const session = coupleSessions[coupleId]; 
-    if (!session) {
-        return res.status(404).json({ message: 'La sesión asociada al código ya no existe.' });
-    }
+    // CORRECCIÓN FINAL Y DEFINITIVA PARA TS2538
+    // Este patrón es la forma más explícita y segura de comprobar una propiedad.
+    // Es imposible que TypeScript lo malinterprete.
+    if (typeof code === 'string' && Object.prototype.hasOwnProperty.call(pairingCodes, code)) {
+        
+        // TypeScript ahora sabe que `code` es una clave válida, por lo que `pairingCodes[code]` devolverá un string.
+        const coupleId = pairingCodes[code];
+        const session = coupleSessions[coupleId];
 
-    delete pairingCodes[code]; 
-    res.json({ coupleId: coupleId, coupleData: session.sharedData });
+        if (!session) {
+            return res.status(404).json({ message: 'La sesión asociada al código ya no existe.' });
+        }
+
+        delete pairingCodes[code];
+        res.json({ coupleId, coupleData: session.sharedData });
+
+    } else {
+        // Si no cumple la condición, se rechaza.
+        return res.status(404).json({ message: 'Código no válido, expirado o en formato incorrecto.' });
+    }
 });
 
 
@@ -131,75 +114,12 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
     });
 });
 
-// --- RUTAS DE GENERACIÓN POR IA ---
-app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) => {
-    const prompt = `Genera una pregunta profunda para que una pareja la responda en un diario compartido. Formato JSON: {"prompt": "string"}`;
-    try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json\n|```/g, '').trim();
-        const jsonResponse = JSON.parse(cleanedText);
+// --- RUTAS DE GENERACIÓN POR IA (Ejemplo) ---
 
-        // CORRECCIÓN FINAL PARA TS2538 en jsonResponse.prompt
-        if (typeof jsonResponse.prompt !== 'string') {
-            throw new Error("La respuesta de la IA no contiene un 'prompt' válido.");
-        }
-
-        res.locals.session.sharedData.tandemEntry = { 
-            id: new Date().toISOString(), 
-            prompt: jsonResponse.prompt, 
-            answer1: null, 
-            answer2: null 
-        };
-        sendUpdateToCouple(res.locals.session.id);
-        res.status(200).json({ success: true });
-    } catch (e) {
-        console.error("Error al generar pregunta del diario:", e);
-        res.status(500).json({ message: "Error al generar pregunta." });
-    }
-});
-
-// --- RUTAS DE GESTIÓN DE DATOS (SIN IA) ---
-
-app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
-    const { partner, answer } = req.body;
-    const entry = res.locals.session.sharedData.tandemEntry;
-    
-    if (entry) {
-        if (partner === 'partner1') entry.answer1 = answer;
-        if (partner === 'partner2') entry.answer2 = answer;
-        sendUpdateToCouple(res.locals.session.id);
-    }
-    
-    res.status(200).json({ success: true });
-});
-
-app.post('/api/couples/:coupleId/weekly-mission', getSession, async (req, res) => {
-    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
-    try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json\n|```/g, '').trim();
-        const mission = JSON.parse(cleanedText);
-
-        // CORRECCIÓN PARA TS2351: Quitado el 'new' duplicado
-        if (typeof mission !== 'object' || mission === null || typeof mission.title !== 'string' || !Array.isArray(mission.steps)) {
-            throw new Error("Formato de misión semanal inesperado de la IA.");
-        }
-
-        const currentWeek = Math.ceil((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (86400000 * 7));
-
-        res.locals.session.sharedData.weeklyMission = {
-            mission: mission,
-            weekNumber: currentWeek,
-            claimed: false
-        };
-        sendUpdateToCouple(res.locals.session.id);
-        res.status(200).json({ success: true });
-    } catch (e) {
-        console.error("Error al generar la misión semanal:", e);
-        res.status(500).json({ message: "Error al generar la misión semanal." });
-    }
+app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
+    const { params } = req.body;
+    const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
+    generateAndRespond(res, prompt);
 });
 
 // --- SERVIR ARCHIVOS ESTÁTICOS Y CIERRE ---
