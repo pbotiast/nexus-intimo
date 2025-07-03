@@ -10,22 +10,23 @@ import { PassportProvider } from './contexts/PassportContext';
 // import { ThemeProvider } from './contexts/ThemeContext'; // Uncomment if you have this file
 
 // Import components and views from within the 'src' directory
-import Sidebar from './components/Sidebar';
-import Home from './views/Home';
-import NexoGuide from './views/NexoGuide';
-import StoryWeaver from './views/StoryWeaver';
-import Adventures from './views/Adventures';
-import PassionPassport from './views/PassionPassport';
-import BodyMap from './views/BodyMap';
-import DesirePath from './views/DesirePath';
-import SoulMirror from './views/SoulMirror';
-import WishChest from './views/WishChest';
-import TandemJournal from './views/TandemJournal';
-import SexDice from './views/SexDice';
-import CouplesIntimacy from './views/CouplesIntimacy';
-import Mastery from './views/Mastery';
-import MyJourney from './views/MyJourney';
-import AudioGuides from './views/AudioGuides';
+import Home from '../views/Home';
+import NexoGuide from '../views/NexoGuide';
+import StoryWeaver from '../views/StoryWeaver';
+import Adventures from '../views/Adventures';
+import PassionPassport from '../views/PassionPassport';
+import BodyMap from '../views/BodyMap';
+import DesirePath from '../views/DesirePath';
+import SoulMirror from '../views/SoulMirror';
+import WishChest from '../views/WishChest';
+import TandemJournal from '../views/TandemJournal';
+import SexDice from '../views/SexDice';
+import CouplesIntimacy from '../views/CouplesIntimacy';
+import Mastery from '../views/Mastery';
+import MyJourney from '../views/MyJourney';
+import AudioGuides from '../views/AudioGuides';
+import Sidebar from './components/Sidebar'; // Import the sidebar component
+
 
 /**
  * AppLayout provides the consistent visual structure for the authenticated part of the app.
