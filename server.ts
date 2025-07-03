@@ -19,7 +19,6 @@ const __dirname = path.dirname(__filename);
 interface CoupleSession {
     id: string;
     clients: Response[];
-    // CORRECCIÓN: Tipado más específico para sharedData
     sharedData: {
         stamps: any[];
         wishes: any[];
@@ -41,7 +40,6 @@ if (!API_KEY) {
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
-// El modelo ya está correctamente configurado como 'gemini-2.5-flash'.
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // --- Funciones de Ayuda y Middleware ---
@@ -55,7 +53,13 @@ const sendUpdateToCouple = (coupleId: string) => {
 };
 
 const getSession = (req: Request, res: Response, next: NextFunction) => {
-    const session = coupleSessions[req.params.coupleId];
+    // CORRECCIÓN TS2538: Asegurarse de que coupleId es una string antes de usarla como índice
+    const coupleId = req.params.coupleId;
+    if (typeof coupleId !== 'string') {
+        return res.status(400).json({ message: 'ID de pareja no proporcionado o inválido.' });
+    }
+
+    const session = coupleSessions[coupleId]; // Ahora coupleId es definitivamente una string
     if (!session) {
         return res.status(404).json({ message: 'Sesión no encontrada o expirada.' });
     }
@@ -102,13 +106,10 @@ app.post('/api/couples', (req, res) => {
 app.post('/api/couples/join', (req, res) => {
     const { code } = req.body;
 
-    // CORRECCIÓN DEFINITIVA PARA TS2538:
-    // 1. Primero, nos aseguramos de que 'code' es una string válida.
     if (typeof code !== 'string') {
         return res.status(400).json({ message: 'Código no proporcionado o en formato incorrecto.' });
     }
 
-    // 2. Ahora que TypeScript sabe que 'code' es una string, podemos usarla como índice.
     const coupleId = pairingCodes[code];
     if (!coupleId) {
         return res.status(404).json({ message: 'Código no válido o expirado.' });
@@ -138,7 +139,12 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     const { params } = req.body;
-    const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
+    // CORRECCIÓN TS2345: Asegurar que los parámetros son string o vacíos
+    const theme = params?.theme ?? '';
+    const intensity = params?.intensity ?? '';
+    const length = params?.length ?? '';
+    const protagonists = params?.protagonists ?? '';
+    const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${theme}, Intensidad: ${intensity}, Longitud: ${length}, Protagonistas: ${protagonists}.`;
     generateAndRespond(res, prompt);
 });
 
@@ -149,25 +155,33 @@ app.post('/api/couples/:coupleId/couples-challenges', getSession, (req, res) => 
 
 app.post('/api/couples/:coupleId/date-idea', getSession, (req, res) => {
     const { category } = req.body;
-    const prompt = `Genera una idea para una cita romántica en español de categoría '${category}'. Formato JSON: {"title": "string", "description": "string", "category": "${category}"}.`;
+    // CORRECCIÓN TS2345: Asegurar que category es string o vacío
+    const categoryString = category ?? '';
+    const prompt = `Genera una idea para una cita romántica en español de categoría '${categoryString}'. Formato JSON: {"title": "string", "description": "string", "category": "${categoryString}"}.`;
     generateAndRespond(res, prompt);
 });
 
 app.post('/api/couples/:coupleId/intimate-ritual', getSession, (req, res) => {
     const { energy } = req.body;
-    const prompt = `Crea un ritual íntimo para una pareja con energía '${energy}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
+    // CORRECCIÓN TS2345: Asegurar que energy es string o vacío
+    const energyString = energy ?? '';
+    const prompt = `Crea un ritual íntimo para una pareja con energía '${energyString}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
     generateAndRespond(res, prompt);
 });
 
 app.post('/api/couples/:coupleId/roleplay-scenario', getSession, (req, res) => {
     const { theme } = req.body;
-    const prompt = `Genera un escenario de roleplay sobre '${theme}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
+    // CORRECCIÓN TS2345: Asegurar que theme es string o vacío
+    const themeString = theme ?? '';
+    const prompt = `Genera un escenario de roleplay sobre '${themeString}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
     generateAndRespond(res, prompt);
 });
 
 app.post('/api/couples/:coupleId/weekly-mission', getSession, (req, res) => {
     const { params } = req.body;
-    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${JSON.stringify(params)}.`;
+    // CORRECCIÓN TS2345: Asegurar que params es un objeto JSON válido o vacío
+    const paramsString = JSON.stringify(params ?? {});
+    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${paramsString}.`;
     generateAndRespond(res, prompt);
 });
 
@@ -276,3 +290,7 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
+// --- Exportar para pruebas unitarias ---
+export default app; 
+export { coupleSessions, pairingCodes, sendUpdateToCouple, getSession, generateAndRespond };
+// --- Fin del código ---
