@@ -5,23 +5,22 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
+
+    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+
+    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    // The 'baseUrl' and 'paths' help resolve module imports easily.
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "noFallthroughCasesInSwitch": true
   },
-  // This now correctly points to the 'src' directory.
+  // Esto le dice a TypeScript que solo se preocupe por los archivos dentro de 'src'
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
