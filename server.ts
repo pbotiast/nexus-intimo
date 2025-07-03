@@ -1,4 +1,4 @@
-// server.ts - VERSIÓN FINAL CON LA ÚLTIMA CORRECCIÓN PARA TYPESCRIPT
+// server.ts - VERSIÓN FINAL Y CORREGIDA PARA PASAR LA COMPILACIÓN
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -33,7 +33,7 @@ if (!API_KEY) {
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
-// CAMBIO AQUÍ: Usando el modelo gemini-2.5-flash
+// CORRECCIÓN: El modelo se llama 'gemini-2.5-flash'.
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // --- Funciones de Ayuda y Middleware ---
@@ -95,7 +95,6 @@ app.post('/api/couples/join', (req, res) => {
     
     const session = coupleSessions[coupleId];
     if (!session) {
-        // Esto es un caso raro, pero es bueno tenerlo.
         return res.status(404).json({ message: 'La sesión asociada al código ya no existe.' });
     }
 
@@ -118,7 +117,7 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     const { params } = req.body;
-    const prompt = `Genera una historia erótica y sexual en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
+    const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
     generateAndRespond(res, prompt);
 });
 
