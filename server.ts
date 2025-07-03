@@ -46,6 +46,12 @@ if (!API_KEY) {
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// --- Logging Middleware ---
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] Incoming request: ${req.method} ${req.path}`);
+    next();
+});
+
 // --- Helper Functions & Middleware ---
 
 /**
@@ -134,7 +140,6 @@ app.post('/api/couples/join', (req, res) => {
     if (typeof code === 'string' && Object.prototype.hasOwnProperty.call(pairingCodes, code)) {
         const coupleId = pairingCodes[code];
 
-        // FIX: Add an explicit check for coupleId to satisfy TypeScript's static analysis.
         if (!coupleId) {
             delete pairingCodes[code]; // Clean up stale code
             return res.status(404).json({ message: 'Could not retrieve session for this code.' });
@@ -172,9 +177,8 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 });
 
 // --- AI GENERATION ROUTES ---
-
+// (All AI routes remain the same)
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
-    // Safely access nested properties from the request body with fallbacks.
     const params = req.body?.params ?? {};
     const theme = params.theme ?? 'un encuentro inesperado';
     const intensity = params.intensity ?? 'media';
@@ -183,30 +187,25 @@ app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${theme}, Intensidad: ${intensity}, Longitud: ${length}, Protagonistas: ${protagonists}.`;
     generateAndRespond(res, prompt);
 });
-
 app.post('/api/couples/:coupleId/couples-challenges', getSession, (req, res) => {
     const prompt = `Genera 3 retos para parejas con intensidad gradual (Suave, Picante, Atrevido). Formato JSON: [{"level": "string", "title": "string", "description": "string"}].`;
     generateAndRespond(res, prompt);
 });
-
 app.post('/api/couples/:coupleId/date-idea', getSession, (req, res) => {
     const category = req.body?.category ?? 'Aventura';
     const prompt = `Genera una idea para una cita romántica en español de categoría '${category}'. Formato JSON: {"title": "string", "description": "string", "category": "${category}"}.`;
     generateAndRespond(res, prompt);
 });
-
 app.post('/api/couples/:coupleId/intimate-ritual', getSession, (req, res) => {
     const energy = req.body?.energy ?? 'relajante';
     const prompt = `Crea un ritual íntimo para una pareja con energía '${energy}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
     generateAndRespond(res, prompt);
 });
-
 app.post('/api/couples/:coupleId/roleplay-scenario', getSession, (req, res) => {
     const theme = req.body?.theme ?? 'fantasía';
     const prompt = `Genera un escenario de roleplay sobre '${theme}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
     generateAndRespond(res, prompt);
 });
-
 app.post('/api/couples/:coupleId/weekly-mission', getSession, (req, res) => {
     const params = req.body?.params ?? {};
     const paramsString = JSON.stringify(params);
@@ -214,8 +213,9 @@ app.post('/api/couples/:coupleId/weekly-mission', getSession, (req, res) => {
     generateAndRespond(res, prompt);
 });
 
-// --- DATA MANAGEMENT ROUTES (NON-AI) ---
 
+// --- DATA MANAGEMENT ROUTES (NON-AI) ---
+// (All data management routes remain the same)
 app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) => {
     const prompt = `Genera una pregunta profunda para que una pareja la responda en un diario compartido. Formato JSON: {"prompt": "string"}`;
     try {
@@ -223,46 +223,35 @@ app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) =
         const text = result.response.text();
         const cleanedText = text.replace(/```json\n|```/g, '').trim();
         const jsonResponse = JSON.parse(cleanedText);
-
-        // Set the new journal entry for the session
         res.locals.session.sharedData.tandemEntry = { id: new Date().toISOString(), prompt: jsonResponse.prompt, answer1: null, answer2: null };
-        
-        // Notify clients of the update
         sendUpdateToCouple(res.locals.session.id);
         res.status(200).json({ success: true });
     } catch (e) {
         res.status(500).json({ message: "Error generating journal prompt." });
     }
 });
-
 app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
     const { partner, answer } = req.body;
     const entry = res.locals.session.sharedData.tandemEntry;
-    
     if (entry) {
         if (partner === 'partner1') entry.answer1 = answer;
         if (partner === 'partner2') entry.answer2 = answer;
-        // Notify clients of the update
         sendUpdateToCouple(res.locals.session.id);
     }
-    
     res.status(200).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/stamps', getSession, (req, res) => {
     const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
     res.locals.session.sharedData.stamps.push(newStamp);
     sendUpdateToCouple(res.locals.session.id);
     res.status(201).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/wishes', getSession, (req, res) => {
     const newWish = { ...req.body, id: new Date().toISOString() };
     res.locals.session.sharedData.wishes.push(newWish);
     sendUpdateToCouple(res.locals.session.id);
     res.status(201).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/bodyMarks', getSession, (req, res) => {
     const { bodyPart, mark } = req.body;
     const existingMarkIndex = res.locals.session.sharedData.bodyMarks.findIndex((bm: any) => bm.bodyPart === bodyPart);
@@ -274,13 +263,11 @@ app.post('/api/couples/:coupleId/bodyMarks', getSession, (req, res) => {
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/tandemJournal', getSession, (req, res) => {
     res.locals.session.sharedData.tandemEntry = req.body.entry;
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/keys', getSession, (req, res) => {
     const { amount } = req.body;
     if (typeof amount === 'number') {
@@ -289,19 +276,16 @@ app.post('/api/couples/:coupleId/keys', getSession, (req, res) => {
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/sexDice', getSession, (req, res) => {
     res.locals.session.sharedData.sexDice = req.body.diceData;
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/aiPreferences', getSession, (req, res) => {
     res.locals.session.sharedData.aiPreferences = req.body.preferences;
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
-
 app.post('/api/couples/:coupleId/weeklyMission', getSession, (req, res) => {
     res.locals.session.sharedData.weeklyMission = req.body.mission;
     sendUpdateToCouple(res.locals.session.id);
@@ -311,21 +295,48 @@ app.post('/api/couples/:coupleId/weeklyMission', getSession, (req, res) => {
 
 // --- STATIC FILE SERVING & FALLBACK ---
 
-// Serve the built client-side assets
-app.use(express.static(path.join(__dirname, '../dist')));
+// DIAGNOSTIC: Log the path we are trying to use for static files.
+const staticPath = path.join(__dirname, '../dist');
+console.log(`Attempting to serve static files from: ${staticPath}`);
 
-// For any other route, serve the main index.html (for client-side routing)
+// Serve the built client-side assets from the calculated path.
+app.use(express.static(staticPath));
+
+// For any other route not handled by the API or static files, serve the main index.html.
+// This is crucial for client-side routing (e.g., React Router).
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+    const indexPath = path.join(__dirname, '../dist', 'index.html');
+    
+    // DIAGNOSTIC: Log that we are attempting to serve the fallback file.
+    console.log(`Fallback: serving index.html from ${indexPath}`);
+    
+    res.sendFile(indexPath, (err) => {
+        // DIAGNOSTIC: If sending the file fails, log the specific error.
+        if (err) {
+            console.error('Error sending index.html:', err);
+            res.status(500).send('Could not find the application entry point. Check server logs for path errors.');
+        }
+    });
 });
 
 // --- Final Error Handler ---
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error("UNHANDLED ERROR:", err);
+    console.error("UNHANDLED ERROR:", err.stack);
     res.status(500).send('Something went wrong on the server!');
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    // DIAGNOSTIC: Confirmation that the server started successfully.
+    console.log(`Server is running and listening on port ${PORT}`);
 });
+// DIAGNOSTIC: Log the environment variables to ensure API_KEY is set.
+console.log("Environment Variables:", {
+    API_KEY: process.env.API_KEY ? 'SET' : 'NOT SET',
+    PORT: process.env.PORT || '3001'
+});
+// DIAGNOSTIC: Log the server's base URL for easy access.
+console.log(`Server is accessible at: http://localhost:${PORT}`);
+// This will help in debugging and ensuring the server is reachable.
+// Ensure that the server is running and accessible at the expected URL.
+// If you encounter issues, check the console logs for any errors or misconfigurations.
