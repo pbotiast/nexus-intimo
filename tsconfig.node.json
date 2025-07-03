@@ -15,7 +15,7 @@
 
     /* If NOT transpiling with SWC */
     "moduleResolution": "NodeNext",
-    "module": "NodeNext",
+    "module": "ESNext",
     "outDir": "dist",
     "sourceMap": true,
     "lib": ["es2022"],

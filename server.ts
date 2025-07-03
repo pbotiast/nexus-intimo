@@ -1,4 +1,4 @@
-iimport express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -10,7 +10,7 @@ import {
     HarmBlockThreshold,
     Content,
     GenerateContentResponse 
-} from "@google/generative-ai"; // Importación corregida a @google/generative-ai
+} from "@google/generative-ai"; 
 
 // --- Configuración Básica ---
 dotenv.config();
