@@ -1,4 +1,4 @@
-// server.ts - VERSIÓN FINAL CON CORRECCIONES PARA TYPESCRIPT ESTRICTO
+// server.ts - VERSIÓN FINAL CON LA ÚLTIMA CORRECCIÓN PARA TYPESCRIPT
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -79,15 +79,23 @@ app.post('/api/couples', (req, res) => {
 
 app.post('/api/couples/join', (req, res) => {
     const { code } = req.body;
-    // CORRECCIÓN TS2538: Validar que 'code' es una string antes de usarla como índice.
-    if (typeof code !== 'string' || !pairingCodes[code]) {
+
+    // CORRECCIÓN DEFINITIVA PARA TS2538:
+    // 1. Primero, nos aseguramos de que 'code' es una string válida.
+    if (typeof code !== 'string') {
+        return res.status(400).json({ message: 'Código no proporcionado o en formato incorrecto.' });
+    }
+
+    // 2. Ahora que TypeScript sabe que 'code' es una string, podemos usarla como índice.
+    const coupleId = pairingCodes[code];
+    if (!coupleId) {
         return res.status(404).json({ message: 'Código no válido o expirado.' });
     }
-    const coupleId = pairingCodes[code];
+    
     const session = coupleSessions[coupleId];
-
     if (!session) {
-        return res.status(404).json({ message: 'La sesión asociada al código no existe.' });
+        // Esto es un caso raro, pero es bueno tenerlo.
+        return res.status(404).json({ message: 'La sesión asociada al código ya no existe.' });
     }
 
     delete pairingCodes[code];
@@ -106,11 +114,10 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 });
 
 // --- RUTAS DE GENERACIÓN POR IA ---
-// (Estas rutas son de ejemplo, puedes añadir las que necesites)
 
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     const { params } = req.body;
-    const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
+    const prompt = `Genera una historia erótica y sexual en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
     generateAndRespond(res, prompt);
 });
 
@@ -135,7 +142,6 @@ app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
     const { partner, answer } = req.body;
     const entry = res.locals.session.sharedData.tandemEntry;
     
-    // CORRECCIÓN TS2532: Comprobar que `entry` no es nulo antes de usarlo.
     if (entry) {
         if (partner === 'partner1') entry.answer1 = answer;
         if (partner === 'partner2') entry.answer2 = answer;
