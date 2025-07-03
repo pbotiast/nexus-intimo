@@ -1,4 +1,4 @@
-// En src/App.tsx
+// src/App.tsx - CÓDIGO CORREGIDO Y FINAL
 
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
@@ -9,31 +9,30 @@ import { EmpathyEngineProvider } from './contexts/EmpathyEngineContext';
 import { KeysProvider } from './contexts/KeysContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { PassportProvider } from './contexts/PassportContext';
-// import { ThemeProvider } from './contexts/ThemeContext'; // Uncomment if you have this file
 
-// Import components and views from within the 'src' directory
-// NOTA: TUS IMPORTACIONES ESTÁN INCORRECTAS, APUNTAN A CARPETAS COMO `../views`. LAS CORREGIRÉ.
-import Home from './views/Home';
-import NexoGuide from './views/NexoGuide';
-import StoryWeaver from './views/StoryWeaver';
-import Adventures from './views/Adventures';
-import PassionPassport from './views/PassionPassport';
-import BodyMap from './views/BodyMap';
-import DesirePath from './views/DesirePath';
-import SoulMirror from './views/SoulMirror';
-import WishChest from './views/WishChest';
-import TandemJournal from './views/TandemJournal';
-import SexDice from './views/SexDice';
-import CouplesIntimacy from './views/CouplesIntimacy';
-import Mastery from './views/Mastery';
-import MyJourney from './views/MyJourney';
-import AudioGuides from './views/AudioGuides';
-import Sidebar from './components/Sidebar';
+// --- IMPORTACIONES CORREGIDAS ---
+// Ahora las rutas apuntan al directorio correcto y tienen la extensión .tsx
+import Home from './views/Home.tsx';
+import NexoGuide from './views/NexoGuide.tsx';
+import StoryWeaver from './views/StoryWeaver.tsx';
+import Adventures from './views/Adventures.tsx';
+import PassionPassport from './views/PassionPassport.tsx';
+import BodyMap from './views/BodyMap.tsx';
+import DesirePath from './views/DesirePath.tsx';
+import SoulMirror from './views/SoulMirror.tsx';
+import WishChest from './views/WishChest.tsx';
+import TandemJournal from './views/TandemJournal.tsx';
+import SexDice from './views/SexDice.tsx';
+import CouplesIntimacy from './views/CouplesIntimacy.tsx';
+import Mastery from './views/Mastery.tsx';
+import MyJourney from './views/MyJourney.tsx';
+import AudioGuides from './views/AudioGuides.tsx';
+import Sidebar from './components/Sidebar.tsx';
 
 
 /**
- * AppLayout provides the consistent visual structure for the authenticated part of the app.
- * It also wraps all page-level components with the necessary context providers.
+ * AppLayout proporciona la estructura visual consistente y envuelve las páginas
+ * con los proveedores de contexto necesarios.
  */
 const AppLayout = () => (
   // --- ORDEN CORRECTO DE PROVIDERS ---
@@ -44,7 +43,6 @@ const AppLayout = () => (
         <div className="flex h-screen bg-gray-900 text-white">
           <Sidebar />
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
-            {/* Child routes defined in the router will render here */}
             <Outlet /> 
           </main>
         </div>
@@ -53,7 +51,7 @@ const AppLayout = () => (
   </KeysProvider>
 );
 
-// Define the application routes using the new layout structure
+// Define las rutas de la aplicación
 const router = createBrowserRouter([
   {
     path: '/',
@@ -79,21 +77,15 @@ const router = createBrowserRouter([
 ]);
 
 /**
- * The main App component. It sets up the top-level providers.
- * The CoupleProvider acts as a gatekeeper, showing either the
- * login/pairing modal or the main application content (its children).
+ * Componente principal de la aplicación.
  */
 function App() {
   return (
-    // <ThemeProvider>
       <NotificationProvider>
         <CoupleProvider>
-          {/* When the user is paired, CoupleProvider will render its children,
-              which is the RouterProvider that displays the main app. */}
           <RouterProvider router={router} />
         </CoupleProvider>
       </NotificationProvider>
-    // </ThemeProvider>
   );
 }
 
