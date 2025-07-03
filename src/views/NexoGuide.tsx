@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useCouple } from '../src/contexts/CoupleContext';
-import { ChatMessage } from '../src/types';
-import Loader from '../src/components/Loader';
-import { ChatBubbleOvalLeftEllipsisIcon, PaperAirplaneIcon } from '../src/components/Icons';
+import { useCouple } from '../contexts/CoupleContext';
+import { ChatMessage } from '../types';
+import Loader from '../components/Loader';
+import { ChatBubbleOvalLeftEllipsisIcon, PaperAirplaneIcon } from '../components/Icons';
 
 const NexoGuide: React.FC = () => {
     const { api } = useCouple();

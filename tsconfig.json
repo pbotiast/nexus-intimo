@@ -20,9 +20,9 @@
       "@src/*": ["./src/*"],
       "@components/*": ["./src/components/*"],
       "@contexts/*": ["./src/contexts/*"],
-      "@views/*": ["./views/*"] // Alias para el directorio de vistas
+      "@views/*": ["src/views/*"] // Alias para el directorio de vistas
     }
   },
-  "include": ["src", "views"],
+  "include": ["src", "src/views"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,17 +1,15 @@
-// src/App.tsx - CÓDIGO CORREGIDO Y FINAL
+// src/App.tsx - CÓDIGO PARA LA ESTRUCTURA RECOMENDADA
 
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 
-// Import all context providers
-import { CoupleProvider } from './contexts/CoupleContext';
-import { EmpathyEngineProvider } from './contexts/EmpathyEngineContext';
-import { KeysProvider } from './contexts/KeysContext';
-import { NotificationProvider } from './contexts/NotificationContext';
-import { PassportProvider } from './contexts/PassportContext';
+import { CoupleProvider } from './contexts/CoupleContext.tsx';
+import { EmpathyEngineProvider } from './contexts/EmpathyEngineContext.tsx';
+import { KeysProvider } from './contexts/KeysContext.tsx';
+import { NotificationProvider } from './contexts/NotificationContext.tsx';
+import { PassportProvider } from './contexts/PassportContext.tsx';
 
-// --- IMPORTACIONES CORREGIDAS ---
-// Ahora las rutas apuntan al directorio correcto y tienen la extensión .tsx
+// Importaciones usando la ruta correcta: './views/...' porque 'views' está ahora al mismo nivel.
 import Home from './views/Home.tsx';
 import NexoGuide from './views/NexoGuide.tsx';
 import StoryWeaver from './views/StoryWeaver.tsx';
@@ -29,14 +27,7 @@ import MyJourney from './views/MyJourney.tsx';
 import AudioGuides from './views/AudioGuides.tsx';
 import Sidebar from './components/Sidebar.tsx';
 
-
-/**
- * AppLayout proporciona la estructura visual consistente y envuelve las páginas
- * con los proveedores de contexto necesarios.
- */
 const AppLayout = () => (
-  // --- ORDEN CORRECTO DE PROVIDERS ---
-  // KeysProvider debe envolver a PassportProvider porque PassportProvider usa el hook useKeys.
   <KeysProvider>
     <PassportProvider>
       <EmpathyEngineProvider>
@@ -51,7 +42,6 @@ const AppLayout = () => (
   </KeysProvider>
 );
 
-// Define las rutas de la aplicación
 const router = createBrowserRouter([
   {
     path: '/',
@@ -76,9 +66,6 @@ const router = createBrowserRouter([
   },
 ]);
 
-/**
- * Componente principal de la aplicación.
- */
 function App() {
   return (
       <NotificationProvider>

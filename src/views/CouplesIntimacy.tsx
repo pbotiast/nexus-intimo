@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { UsersIcon } from '../src/components/Icons';
-import type { CoupleChallenge, IcebreakerQuestion } from '../src/types';
-import Loader from '../src/components/Loader';
-import FeedbackWidget from '../src/components/FeedbackWidget';
-import { useAiPreferences } from '../src/hooks/useAiPreferences';
-import { useCouple } from '../src/contexts/CoupleContext';
+import { UsersIcon } from '../components/Icons';
+import type { CoupleChallenge, IcebreakerQuestion } from '../types';
+import Loader from '../components/Loader';
+import FeedbackWidget from '../components/FeedbackWidget';
+import { useAiPreferences } from '../hooks/useAiPreferences';
+import { useCouple } from '../contexts/CoupleContext';
 
 const CouplesIntimacy: React.FC = () => {
   const { api } = useCouple();

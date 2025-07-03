@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { audioGuides } from '../data/audioGuides';
-import type { AudioGuide } from '../src/types';
-import { SpeakerWaveIcon } from '../src/components/Icons';
+import { audioGuides } from '../../data/audioGuides';
+import type { AudioGuide } from '../types';
+import { SpeakerWaveIcon } from '../components/Icons';
 
 const formatTime = (timeInSeconds: number): string => {
     if (isNaN(timeInSeconds) || timeInSeconds < 0) return '00:00';

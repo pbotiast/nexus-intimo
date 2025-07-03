@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import type { GeneratedStory, StoryParams } from '../src/types';
-import Loader from '../src/components/Loader';
-import FeedbackWidget from '../src/components/FeedbackWidget';
-import { useAiPreferences } from '../src/hooks/useAiPreferences';
-import { BookmarkSquareIcon } from '../src/components/Icons';
-import { useCouple } from '../src/contexts/CoupleContext';
-import { openPassportModal } from '../src/components/PassportModal';
+import type { GeneratedStory, StoryParams } from '../types';
+import Loader from '../components/Loader';
+import FeedbackWidget from '../components/FeedbackWidget';
+import { useAiPreferences } from '../hooks/useAiPreferences';
+import { BookmarkSquareIcon } from '../components/Icons';
+import { useCouple } from '../contexts/CoupleContext';
+import { openPassportModal } from '../components/PassportModal';
 
 
 const StoryWeaver: React.FC = () => {

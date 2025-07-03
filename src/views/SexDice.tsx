@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Modal from '../src/components/Modal';
-import { PencilIcon } from '../src/components/Icons';
-import { useCouple } from '../src/contexts/CoupleContext';
+import Modal from '../components/Modal';
+import { PencilIcon } from '../components/Icons';
+import { useCouple } from '../contexts/CoupleContext';
 
 const defaultActions = [
     'Besar apasionadamente', 
