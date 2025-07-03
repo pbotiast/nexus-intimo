@@ -1,10 +1,17 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path'; // Importar el módulo 'path'
 
 // https://vitejs.dev/config/
-// Esta es la configuración estándar y mínima para un proyecto de Vite + React.
-// Se basa en la estructura de proyecto convencional (index.html en la raíz, código en src).
-// Esta simplicidad resuelve los problemas de rutas en los entornos de despliegue.
 export default defineConfig({
   plugins: [react()],
-})
+  resolve: {
+    alias: {
+      // Configura los alias para que Vite los resuelva durante la construcción
+      '@src': path.resolve(__dirname, './src'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@contexts': path.resolve(__dirname, './src/contexts'),
+      '@views': path.resolve(__dirname, './views'), // Alias para el directorio de vistas
+    },
+  },
+});
