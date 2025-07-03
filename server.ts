@@ -1,5 +1,3 @@
-// server.ts - VERSIÓN FINAL Y CORREGIDA PARA PASAR LA COMPILACIÓN
-
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -21,7 +19,17 @@ const __dirname = path.dirname(__filename);
 interface CoupleSession {
     id: string;
     clients: Response[];
-    sharedData: any; 
+    // CORRECCIÓN: Tipado más específico para sharedData
+    sharedData: {
+        stamps: any[];
+        wishes: any[];
+        bodyMarks: any[];
+        tandemEntry: { id: string; prompt: string; answer1: string | null; answer2: string | null } | null;
+        keys: number;
+        sexDice: { actions: string[]; bodyParts: string[] };
+        aiPreferences: any; // Considerar tipado más específico si la estructura es conocida
+        weeklyMission: { title: string; description: string } | null;
+    };
 }
 const coupleSessions: Record<string, CoupleSession> = {};
 const pairingCodes: Record<string, string> = {};
@@ -33,7 +41,7 @@ if (!API_KEY) {
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
-// CORRECCIÓN: El modelo se llama 'gemini-2.5-flash'.
+// El modelo ya está correctamente configurado como 'gemini-2.5-flash'.
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // --- Funciones de Ayuda y Middleware ---
@@ -73,7 +81,20 @@ async function generateAndRespond(res: Response, prompt: string) {
 app.post('/api/couples', (req, res) => {
     const coupleId = short.generate();
     const pairingCode = short.generate().substring(0, 6).toUpperCase();
-    coupleSessions[coupleId] = { id: coupleId, clients: [], sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null } };
+    coupleSessions[coupleId] = { 
+        id: coupleId, 
+        clients: [], 
+        sharedData: { 
+            stamps: [], 
+            wishes: [], 
+            bodyMarks: [], 
+            tandemEntry: null, 
+            keys: 0, 
+            sexDice: { actions: [], bodyParts: [] }, 
+            aiPreferences: {}, 
+            weeklyMission: null 
+        } 
+    };
     pairingCodes[pairingCode] = coupleId;
     res.status(201).json({ coupleId, pairingCode });
 });
@@ -121,6 +142,35 @@ app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     generateAndRespond(res, prompt);
 });
 
+app.post('/api/couples/:coupleId/couples-challenges', getSession, (req, res) => {
+    const prompt = `Genera 3 retos para parejas con intensidad gradual (Suave, Picante, Atrevido). Formato JSON: [{"level": "string", "title": "string", "description": "string"}].`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/date-idea', getSession, (req, res) => {
+    const { category } = req.body;
+    const prompt = `Genera una idea para una cita romántica en español de categoría '${category}'. Formato JSON: {"title": "string", "description": "string", "category": "${category}"}.`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/intimate-ritual', getSession, (req, res) => {
+    const { energy } = req.body;
+    const prompt = `Crea un ritual íntimo para una pareja con energía '${energy}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/roleplay-scenario', getSession, (req, res) => {
+    const { theme } = req.body;
+    const prompt = `Genera un escenario de roleplay sobre '${theme}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/weekly-mission', getSession, (req, res) => {
+    const { params } = req.body;
+    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${JSON.stringify(params)}.`;
+    generateAndRespond(res, prompt);
+});
+
 // --- RUTAS DE GESTIÓN DE DATOS (SIN IA) ---
 
 app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) => {
@@ -150,6 +200,64 @@ app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
     
     res.status(200).json({ success: true });
 });
+
+app.post('/api/couples/:coupleId/stamps', getSession, (req, res) => {
+    const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
+    res.locals.session.sharedData.stamps.push(newStamp);
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(201).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/wishes', getSession, (req, res) => {
+    const newWish = { ...req.body, id: new Date().toISOString() };
+    res.locals.session.sharedData.wishes.push(newWish);
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(201).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/bodyMarks', getSession, (req, res) => {
+    const { bodyPart, mark } = req.body;
+    const existingMarkIndex = res.locals.session.sharedData.bodyMarks.findIndex((bm: any) => bm.bodyPart === bodyPart);
+    if (existingMarkIndex !== -1) {
+        res.locals.session.sharedData.bodyMarks[existingMarkIndex].mark = mark;
+    } else {
+        res.locals.session.sharedData.bodyMarks.push({ bodyPart, mark });
+    }
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/tandemJournal', getSession, (req, res) => {
+    res.locals.session.sharedData.tandemEntry = req.body.entry;
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/keys', getSession, (req, res) => {
+    const { amount } = req.body;
+    res.locals.session.sharedData.keys += amount;
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/sexDice', getSession, (req, res) => {
+    res.locals.session.sharedData.sexDice = req.body.diceData;
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/aiPreferences', getSession, (req, res) => {
+    res.locals.session.sharedData.aiPreferences = req.body.preferences;
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true });
+});
+
+app.post('/api/couples/:coupleId/weeklyMission', getSession, (req, res) => {
+    res.locals.session.sharedData.weeklyMission = req.body.mission;
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true });
+});
+
 
 // --- SERVIR ARCHIVOS ESTÁTICOS Y CIERRE ---
 
