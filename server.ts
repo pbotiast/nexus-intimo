@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+iimport express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -10,9 +10,9 @@ import {
     HarmBlockThreshold,
     Content,
     GenerateContentResponse 
-} from "@google/generative-ai";
+} from "@google/generative-ai"; // Importación corregida a @google/generative-ai
 
-// --- Basic Setup ---
+// --- Configuración Básica ---
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -21,31 +21,33 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- In-Memory Storage ---
+// --- Almacenamiento en Memoria ---
 interface CoupleSession {
     id: string;
     users: string[];
     sharedData: any;
-    clients: Response[]; // For SSE
+    clients: Response[]; // Para SSE
 }
 const coupleSessions: Record<string, CoupleSession> = {};
 const pairingCodes: Record<string, string> = {};
 
-// --- Gemini API Setup ---
+// --- Configuración de la API de Gemini ---
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
-    console.error("FATAL ERROR: API_KEY for Gemini is not defined in environment variables");
+    console.error("ERROR FATAL: La API_KEY para Gemini no está definida en las variables de entorno");
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// --- Helper Functions ---
+// --- Funciones de Ayuda ---
 const sendUpdateToCouple = (coupleId: string) => {
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return;
     }
     const session = coupleSessions[coupleId];
     if (session && session.clients) {
+        // Crea una copia de los datos de la sesión y elimina el array 'clients'
+        // para evitar errores de estructura circular durante JSON.stringify para SSE.
         const dataToSend = { ...session };
         delete (dataToSend as any).clients; 
         session.clients.forEach(client => 
@@ -54,7 +56,7 @@ const sendUpdateToCouple = (coupleId: string) => {
     }
 };
 
-// --- API Routes ---
+// --- Rutas de la API ---
 
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -68,10 +70,10 @@ app.post('/api/couples', (req: Request, res: Response) => {
         id: coupleId,
         users: [],
         sharedData: { stamps: [], wishes: [], bodyMarks: [], journal: { entries: [] }, keys: 0, sexDice: { actions: [], bodyParts: [] } },
-        clients: [],
+        clients: [], // Inicializa con un array vacío de clientes
     };
     pairingCodes[pairingCode] = coupleId;
-    console.log(`Session created: ${coupleId} with code ${pairingCode}`);
+    console.log(`Sesión creada: ${coupleId} con código ${pairingCode}`);
     res.status(201).json({ coupleId, pairingCode });
 });
 
@@ -85,8 +87,13 @@ app.post('/api/couples/join', (req: Request, res: Response) => {
         delete pairingCodes[code];
         return res.status(404).json({ message: 'La sesión asociada ha expirado. Por favor, crea una nueva.' });
     }
-    const coupleData = coupleSessions[coupleId];
-    delete pairingCodes[code];
+    
+    // Crea una copia de coupleData y elimina el array 'clients'
+    // antes de enviarlo en la respuesta JSON para evitar errores de estructura circular.
+    const coupleData = { ...coupleSessions[coupleId] };
+    delete (coupleData as any).clients; // Convierte a 'any' para permitir la eliminación de la propiedad 'clients'
+    
+    delete pairingCodes[code]; // Elimina el código de emparejamiento después de unirse con éxito
     res.json({ coupleId, coupleData });
 });
 
@@ -95,6 +102,8 @@ app.get('/api/couples/:coupleId', (req: Request, res: Response) => {
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return res.status(404).json({ message: 'Sesión no encontrada.' });
     }
+    // Crea una copia de los datos de la sesión y elimina el array 'clients'
+    // antes de enviarlo en la respuesta JSON.
     const data = { ...coupleSessions[coupleId] };
     delete (data as any).clients;
     res.json(data);
@@ -126,7 +135,7 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
     const candidate = response.candidates?.[0];
 
     if (!candidate?.content?.parts?.[0]?.text) {
-        throw new Error("Invalid response from AI");
+        throw new Error("Respuesta inválida de la IA");
     }
     const text = candidate.content.parts[0].text;
     try {
@@ -144,7 +153,7 @@ app.post('/api/couples/:coupleId/*', async (req: Request, res: Response) => {
         return res.status(404).json({ message: 'Sesión no encontrada.' });
     }
     
-    console.log(`Mock response for: ${route}`);
+    console.log(`Respuesta simulada para: ${route}`);
     
     if (route.includes('generate')) {
         try {
@@ -156,31 +165,31 @@ app.post('/api/couples/:coupleId/*', async (req: Request, res: Response) => {
         }
     }
     
-    res.json({ message: `Mock response for ${route}`, success: true });
+    res.json({ message: `Respuesta simulada para ${route}`, success: true });
 });
 
 
-// --- Static File Serving & Final Setup ---
-// FIX: Serve static files (JS, CSS, images) from the 'dist' directory, which is the current directory of the compiled server.js
+// --- Servir Archivos Estáticos y Configuración Final ---
+// Sirve archivos estáticos (JS, CSS, imágenes) desde el directorio 'dist', que es el directorio actual del servidor compilado.
 app.use(express.static(__dirname)); 
 
-// FIX: For any other GET request that is not an API route, serve the main index.html file.
-// This allows React Router to handle the routing on the client side.
+// Para cualquier otra solicitud GET que no sea una ruta de API, sirve el archivo index.html principal.
+// Esto permite que React Router maneje el enrutamiento en el lado del cliente.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- Error Handling ---
+// --- Manejo de Errores ---
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error("UNHANDLED ERROR:", err);
-    res.status(500).send('Something broke!');
+    console.error("ERROR NO MANEJADO:", err);
+    res.status(500).send('¡Algo salió mal!');
 });
 process.on('uncaughtException', (err) => {
-    console.error('There was an uncaught error', err);
+    console.error('Hubo un error no detectado', err);
     process.exit(1);
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
