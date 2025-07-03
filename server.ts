@@ -1,3 +1,5 @@
+// server.ts - VERSIÓN FINAL Y COMPLETA
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -19,16 +21,7 @@ const __dirname = path.dirname(__filename);
 interface CoupleSession {
     id: string;
     clients: Response[];
-    sharedData: {
-        stamps: any[];
-        wishes: any[];
-        bodyMarks: any[];
-        tandemEntry: any | null;
-        keys: number;
-        sexDice: { actions: string[]; bodyParts: string[] };
-        aiPreferences: any;
-        weeklyMission: any | null;
-    };
+    sharedData: any; 
 }
 const coupleSessions: Record<string, CoupleSession> = {};
 const pairingCodes: Record<string, string> = {};
@@ -36,66 +29,77 @@ const pairingCodes: Record<string, string> = {};
 // --- Configuración de Gemini ---
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
-    console.error("FATAL ERROR: API_KEY for Gemini is not defined.");
+    console.error("ERROR FATAL: La API_KEY para Gemini no está definida.");
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // --- Funciones de Ayuda y Middleware ---
+
+// Notifica a ambos clientes de un cambio en los datos compartidos
 const sendUpdateToCouple = (coupleId: string) => {
     const session = coupleSessions[coupleId];
     if (session?.clients) {
+        const dataToSend = session.sharedData;
         session.clients.forEach(client => 
-            client.write(`data: ${JSON.stringify({ type: 'update', data: session.sharedData })}\n\n`)
+            client.write(`data: ${JSON.stringify({ type: 'update', data: dataToSend })}\n\n`)
         );
     }
 };
 
+// Middleware para obtener y validar la sesión en cada petición
 const getSession = (req: Request, res: Response, next: NextFunction) => {
     const session = coupleSessions[req.params.coupleId];
     if (!session) {
-        return res.status(404).json({ message: 'Session not found.' });
+        return res.status(404).json({ message: 'Sesión no encontrada o expirada.' });
     }
     res.locals.session = session;
     next();
 };
 
+// Función genérica para interactuar con la IA y parsear la respuesta
 async function generateAndRespond(res: Response, prompt: string) {
     try {
+        console.log("Enviando prompt a la IA:", prompt.substring(0, 200) + "...");
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        // Limpiar el texto de markdown y parsear
+        // Limpia el texto de markdown y parsea el JSON
         const cleanedText = text.replace(/```json\n|```/g, '').trim();
         const jsonResponse = JSON.parse(cleanedText);
         res.json(jsonResponse);
     } catch (error) {
-        console.error("Gemini API or JSON parsing error:", error);
-        res.status(500).json({ message: "Error generating AI response." });
+        console.error("Error en la API de Gemini o al parsear JSON:", error);
+        res.status(500).json({ message: "No se pudo generar la respuesta de la IA." });
     }
 }
 
-// --- Rutas de Sesión ---
+// --- RUTAS DE GESTIÓN DE SESIÓN ---
+
 app.post('/api/couples', (req, res) => {
     const coupleId = short.generate();
     const pairingCode = short.generate().substring(0, 6).toUpperCase();
     coupleSessions[coupleId] = {
         id: coupleId,
         clients: [],
-        sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null },
+        sharedData: { 
+            stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, 
+            sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null 
+        },
     };
     pairingCodes[pairingCode] = coupleId;
+    console.log(`Sesión creada: ${coupleId} con código ${pairingCode}`);
     res.status(201).json({ coupleId, pairingCode });
 });
 
 app.post('/api/couples/join', (req, res) => {
     const { code } = req.body;
-    // CORRECCIÓN TS2538: Validar que 'code' es una string antes de usarla como índice.
+    // Corrección de error de TypeScript: validar 'code' antes de usarlo como índice
     if (typeof code !== 'string' || !pairingCodes[code]) {
-        return res.status(404).json({ message: 'Invalid or expired pairing code.' });
+        return res.status(404).json({ message: 'Código no válido o expirado.' });
     }
     const coupleId = pairingCodes[code];
-    delete pairingCodes[code];
+    delete pairingCodes[code]; // El código se usa una sola vez
     res.json({ coupleId, coupleData: coupleSessions[coupleId].sharedData });
 });
 
@@ -111,15 +115,13 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 
     res.locals.session.clients.push(res);
     req.on('close', () => {
-        // CORRECCIÓN TS7006: Tipar explícitamente el parámetro 'c'.
+        // Corrección de error de TypeScript: tipar explícitamente el parámetro 'c'
         res.locals.session.clients = res.locals.session.clients.filter((c: Response) => c !== res);
     });
 });
 
+// --- RUTAS DE GENERACIÓN POR IA ---
 
-// --- RUTAS DE API ESPECÍFICAS (COMPLETAS) ---
-
-// IA Generativa
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
     const { params } = req.body;
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
@@ -149,88 +151,104 @@ app.post('/api/couples/:coupleId/roleplay-scenario', getSession, (req, res) => {
     generateAndRespond(res, prompt);
 });
 
-app.post('/api/couples/:coupleId/weekly-mission', getSession, (req, res) => {
-    const { params } = req.body;
-    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${JSON.stringify(params)}.`;
+app.post('/api/couples/:coupleId/personal-challenge', getSession, (req, res) => {
+    const prompt = `Genera un reto personal de autoexploración sexual o de intimidad. Formato JSON: {"title": "string", "description": "string", "focus": "string"}.`;
     generateAndRespond(res, prompt);
 });
 
-// Gestión de Datos
+app.post('/api/couples/:coupleId/icebreaker-question', getSession, (req, res) => {
+    const prompt = `Genera una pregunta rompehielos para profundizar la conexión en una pareja. Formato JSON: {"question": "string", "category": "string"}.`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/game-challenge', getSession, (req, res) => {
+    const { type } = req.body;
+    const prompt = `Genera un desafío para un juego de mesa erótico de tipo '${type}'. Formato JSON: {"type": "${type}", "title": "string", "description": "string"}.`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/nexo-chat', getSession, (req, res) => {
+    const { messages } = req.body;
+    const history = messages.map((m: {role: string, text: string}) => `${m.role}: ${m.text}`).join('\n');
+    const prompt = `Eres 'Nexo', un guía de intimidad para parejas. Continúa esta conversación de forma útil y empática:\n${history}\nmodel: \nFormato JSON: {"text": "string"}`;
+    generateAndRespond(res, prompt);
+});
+
+app.post('/api/couples/:coupleId/journal/prompt', getSession, async (req, res) => {
+    const prompt = `Genera una pregunta profunda para que una pareja la responda en un diario compartido. Formato JSON: {"prompt": "string"}`;
+    try {
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json\n|```/g, '').trim();
+        const jsonResponse = JSON.parse(cleanedText);
+
+        res.locals.session.sharedData.tandemEntry = {
+            id: new Date().toISOString(),
+            prompt: jsonResponse.prompt,
+            answer1: null,
+            answer2: null
+        };
+        sendUpdateToCouple(req.params.coupleId);
+        res.status(200).json({ success: true });
+    } catch (e) {
+        res.status(500).json({ message: "Error al generar pregunta." });
+    }
+});
+
+
+// --- RUTAS DE GESTIÓN DE DATOS (SIN IA) ---
+
 app.post('/api/couples/:coupleId/stamps', getSession, (req, res) => {
-    const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
+    const { stampData } = req.body;
+    const newStamp = { 
+        ...stampData, 
+        id: new Date().toISOString(), 
+        date: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+    };
     res.locals.session.sharedData.stamps.push(newStamp);
     sendUpdateToCouple(req.params.coupleId);
     res.status(201).json({ success: true });
 });
 
 app.post('/api/couples/:coupleId/wishes', getSession, (req, res) => {
-    const newWish = { ...req.body, id: new Date().toISOString() };
+    const { text } = req.body;
+    const newWish = { text, id: new Date().toISOString(), author: 'partner1' }; // Autor es placeholder
     res.locals.session.sharedData.wishes.push(newWish);
     sendUpdateToCouple(req.params.coupleId);
     res.status(201).json({ success: true });
 });
 
-app.post('/api/couples/:coupleId/bodyMarks', getSession, (req, res) => {
-    const { bodyPart, mark } = req.body;
-    const existingMarkIndex = res.locals.session.sharedData.bodyMarks.findIndex((bm: any) => bm.bodyPart === bodyPart);
-    if (existingMarkIndex !== -1) {
-        res.locals.session.sharedData.bodyMarks[existingMarkIndex].mark = mark;
-    } else {
-        res.locals.session.sharedData.bodyMarks.push({ bodyPart, mark });
+app.post('/api/couples/:coupleId/keys/add', getSession, (req, res) => {
+    res.locals.session.sharedData.keys += 1;
+    sendUpdateToCouple(req.params.coupleId);
+    res.status(200).json({ success: true, keys: res.locals.session.sharedData.keys });
+});
+
+app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
+    const { partner, answer } = req.body;
+    const entry = res.locals.session.sharedData.tandemEntry;
+    if (entry) {
+        if (partner === 'partner1') entry.answer1 = answer;
+        if (partner === 'partner2') entry.answer2 = answer;
     }
     sendUpdateToCouple(req.params.coupleId);
     res.status(200).json({ success: true });
 });
 
-app.post('/api/couples/:coupleId/tandemJournal', getSession, (req, res) => {
-    res.locals.session.sharedData.tandemEntry = req.body.entry;
-    sendUpdateToCouple(req.params.coupleId);
-    res.status(200).json({ success: true });
-});
+// --- SERVIR ARCHIVOS ESTÁTICOS Y CIERRE ---
 
-app.post('/api/couples/:coupleId/keys', getSession, (req, res) => {
-    const { amount } = req.body;
-    res.locals.session.sharedData.keys += amount;
-    sendUpdateToCouple(req.params.coupleId);
-    res.status(200).json({ success: true });
-});
-
-app.post('/api/couples/:coupleId/sexDice', getSession, (req, res) => {
-    res.locals.session.sharedData.sexDice = req.body.diceData;
-    sendUpdateToCouple(req.params.coupleId);
-    res.status(200).json({ success: true });
-});
-
-app.post('/api/couples/:coupleId/aiPreferences', getSession, (req, res) => {
-    res.locals.session.sharedData.aiPreferences = req.body.preferences;
-    sendUpdateToCouple(req.params.coupleId);
-    res.status(200).json({ success: true });
-});
-
-app.post('/api/couples/:coupleId/weeklyMission', getSession, (req, res) => {
-    res.locals.session.sharedData.weeklyMission = req.body.mission;
-    sendUpdateToCouple(req.params.coupleId);
-    res.status(200).json({ success: true });
-});
-
-
-// --- Servir Archivos Estáticos ---
-// Sirve archivos estáticos (JS, CSS, imágenes) desde el directorio 'dist', que es el directorio actual del servidor compilado.
 app.use(express.static(__dirname));
-// Para cualquier otra solicitud GET que no sea una ruta de API, sirve el archivo index.html principal.
-// Esto permite que React Router maneje el enrutamiento en el lado del cliente.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- Manejo de Errores ---
+// --- Manejador de errores final ---
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error("UNHANDLED ERROR:", err);
-    res.status(500).send('Something broke!');
+    console.error("ERROR NO MANEJADO:", err);
+    res.status(500).send('¡Algo salió muy mal en el servidor!');
 });
 
-// --- Inicio del Servidor ---
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
