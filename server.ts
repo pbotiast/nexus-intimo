@@ -53,13 +53,12 @@ const sendUpdateToCouple = (coupleId: string) => {
 };
 
 const getSession = (req: Request, res: Response, next: NextFunction) => {
-    // CORRECCIÓN TS2538: Asegurarse de que coupleId es una string antes de usarla como índice
     const coupleId = req.params.coupleId;
     if (typeof coupleId !== 'string') {
         return res.status(400).json({ message: 'ID de pareja no proporcionado o inválido.' });
     }
 
-    const session = coupleSessions[coupleId]; // Ahora coupleId es definitivamente una string
+    const session = coupleSessions[coupleId];
     if (!session) {
         return res.status(404).json({ message: 'Sesión no encontrada o expirada.' });
     }
@@ -138,12 +137,12 @@ app.get('/api/couples/:coupleId/events', getSession, (req, res) => {
 // --- RUTAS DE GENERACIÓN POR IA ---
 
 app.post('/api/couples/:coupleId/story', getSession, (req, res) => {
-    const { params } = req.body;
-    // CORRECCIÓN TS2345: Asegurar que los parámetros son string o vacíos
-    const theme = params?.theme ?? '';
-    const intensity = params?.intensity ?? '';
-    const length = params?.length ?? '';
-    const protagonists = params?.protagonists ?? '';
+    // CORRECCIÓN: Asegurar que params es un objeto antes de acceder a sus propiedades
+    const params = req.body.params ?? {}; 
+    const theme = params.theme ?? '';
+    const intensity = params.intensity ?? '';
+    const length = params.length ?? '';
+    const protagonists = params.protagonists ?? '';
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${theme}, Intensidad: ${intensity}, Longitud: ${length}, Protagonistas: ${protagonists}.`;
     generateAndRespond(res, prompt);
 });
@@ -154,33 +153,33 @@ app.post('/api/couples/:coupleId/couples-challenges', getSession, (req, res) => 
 });
 
 app.post('/api/couples/:coupleId/date-idea', getSession, (req, res) => {
+    // CORRECCIÓN: Asegurar que category es un string
     const { category } = req.body;
-    // CORRECCIÓN TS2345: Asegurar que category es string o vacío
     const categoryString = category ?? '';
     const prompt = `Genera una idea para una cita romántica en español de categoría '${categoryString}'. Formato JSON: {"title": "string", "description": "string", "category": "${categoryString}"}.`;
     generateAndRespond(res, prompt);
 });
 
 app.post('/api/couples/:coupleId/intimate-ritual', getSession, (req, res) => {
+    // CORRECCIÓN: Asegurar que energy es un string
     const { energy } = req.body;
-    // CORRECCIÓN TS2345: Asegurar que energy es string o vacío
     const energyString = energy ?? '';
     const prompt = `Crea un ritual íntimo para una pareja con energía '${energyString}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
     generateAndRespond(res, prompt);
 });
 
 app.post('/api/couples/:coupleId/roleplay-scenario', getSession, (req, res) => {
+    // CORRECCIÓN: Asegurar que theme es un string
     const { theme } = req.body;
-    // CORRECCIÓN TS2345: Asegurar que theme es string o vacío
     const themeString = theme ?? '';
     const prompt = `Genera un escenario de roleplay sobre '${themeString}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
     generateAndRespond(res, prompt);
 });
 
 app.post('/api/couples/:coupleId/weekly-mission', getSession, (req, res) => {
-    const { params } = req.body;
-    // CORRECCIÓN TS2345: Asegurar que params es un objeto JSON válido o vacío
-    const paramsString = JSON.stringify(params ?? {});
+    // CORRECCIÓN: Asegurar que params es un objeto JSON válido
+    const params = req.body.params ?? {};
+    const paramsString = JSON.stringify(params);
     const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${paramsString}.`;
     generateAndRespond(res, prompt);
 });
@@ -290,7 +289,3 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
-// --- Exportar para pruebas unitarias ---
-export default app; 
-export { coupleSessions, pairingCodes, sendUpdateToCouple, getSession, generateAndRespond };
-// --- Fin del código ---
