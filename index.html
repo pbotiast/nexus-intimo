@@ -9,13 +9,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- FIX: Using a relative path is the correct and most robust standard -->
+    <!-- This relative path will now be correctly resolved with the fixed tsconfig.json -->
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>
-<script>
-  // This script is used to handle the redirection from the root path to the nexus-intimo path
-  if (window.location.pathname === '/') {
-    window.location.href = '/nexus-%C3%ADntimo/';
-  }
-</script>
