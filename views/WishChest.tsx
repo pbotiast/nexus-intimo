@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import type { Wish } from '../types';
-import { useCouple } from '../contexts/CoupleContext';
-import { ChestIcon, KeyIcon } from '../components/Icons';
-import Modal from '../components/Modal';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import Loader from '../components/Loader';
-import { showInfoModal } from '../components/InfoModal';
+import type { Wish } from '../src/types';
+import { useCouple } from '../src/contexts/CoupleContext';
+import { ChestIcon, KeyIcon } from '../src/components/Icons';
+import Modal from '../src/components/Modal';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import Loader from '../src/components/Loader';
+import { showInfoModal } from '../src/components/InfoModal';
 
 const WishChest: React.FC = () => {
     const { coupleData, api } = useCouple();

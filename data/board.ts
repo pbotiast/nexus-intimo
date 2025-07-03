@@ -1,5 +1,5 @@
 
-import { BoardSquare } from '../types';
+import { BoardSquare } from '../src/types';
 
 export const board: BoardSquare[] = [
   { id: 0, type: 'start', title: 'Inicio' },

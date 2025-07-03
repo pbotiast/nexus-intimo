@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { Achievement, IntimateChronicle, PassionStamp } from '../types';
-import { PassportIcon, SparklesIcon, DocumentTextIcon } from '../components/Icons';
-import { useCouple } from '../contexts/CoupleContext';
-import Loader from '../components/Loader';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { openPassportModal } from '../components/PassportModal';
-import { showConfirmModal } from '../components/ConfirmModal';
+import type { Achievement, IntimateChronicle, PassionStamp } from '../src/types';
+import { PassportIcon, SparklesIcon, DocumentTextIcon } from '../src/components/Icons';
+import { useCouple } from '../src/contexts/CoupleContext';
+import Loader from '../src/components/Loader';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { openPassportModal } from '../src/components/PassportModal';
+import { showConfirmModal } from '../src/components/ConfirmModal';
 
 const allAchievements: Omit<Achievement, 'isUnlocked'>[] = [
     { id: 'first_stamp', title: 'Primer Paso', description: 'Has añadido vuestro primer recuerdo al pasaporte. ¡El viaje ha comenzado!' },

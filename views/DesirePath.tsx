@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { board } from '../data/board';
-import type { GameChallenge, BoardSquareType } from '../types';
-import Modal from '../components/Modal';
-import Loader from '../components/Loader';
-import { MapIcon, SparklesIcon, UsersIcon, FireIcon, HeartIcon, BookmarkSquareIcon } from '../components/Icons';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { useCouple } from '../contexts/CoupleContext';
-import { openPassportModal } from '../components/PassportModal';
+import type { GameChallenge, BoardSquareType } from '../src/types';
+import Modal from '../src/components/Modal';
+import Loader from '../src/components/Loader';
+import { MapIcon, SparklesIcon, UsersIcon, FireIcon, HeartIcon, BookmarkSquareIcon } from '../src/components/Icons';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { useCouple } from '../src/contexts/CoupleContext';
+import { openPassportModal } from '../src/components/PassportModal';
 
 
 const DesirePath: React.FC = () => {

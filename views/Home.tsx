@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import Card from '../components/Card';
-import Loader from '../components/Loader';
-import type { IntimateRitual, RitualEnergy, RitualStepType } from '../types';
-import { HeartIcon, BookOpenIcon, UsersIcon, PuzzlePieceIcon, FireIcon, MapIcon, PassportIcon, SpeakerWaveIcon, MagicWandIcon, TrophyIcon, ChestIcon, KeyIcon, BodyIcon, CompassIcon, DocumentDuplicateIcon } from '../components/Icons';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { useCouple } from '../contexts/CoupleContext';
-import { showInfoModal } from '../components/InfoModal';
+import Card from '../src/components/Card';
+import Loader from '../src/components/Loader';
+import type { IntimateRitual, RitualEnergy, RitualStepType } from '../src/types';
+import { HeartIcon, BookOpenIcon, UsersIcon, PuzzlePieceIcon, FireIcon, MapIcon, PassportIcon, SpeakerWaveIcon, MagicWandIcon, TrophyIcon, ChestIcon, KeyIcon, BodyIcon, CompassIcon, DocumentDuplicateIcon } from '../src/components/Icons';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { useCouple } from '../src/contexts/CoupleContext';
+import { showInfoModal } from '../src/components/InfoModal';
 
 const features = [
   {

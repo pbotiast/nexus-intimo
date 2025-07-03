@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BodyMark, SensationType } from '../types';
-import { BodyIcon, BodyFrontIcon, BodyBackIcon, XMarkIcon } from '../components/Icons';
-import Modal from '../components/Modal';
-import { useCouple } from '../contexts/CoupleContext';
+import { BodyMark, SensationType } from '../src/types';
+import { BodyIcon, BodyFrontIcon, BodyBackIcon, XMarkIcon } from '../src/components/Icons';
+import Modal from '../src/components/Modal';
+import { useCouple } from '../src/contexts/CoupleContext';
 
 const sensationTypes: SensationType[] = [
     'Beso Suave',

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PuzzlePieceIcon, BookOpenIcon, MapPinIcon, HeartIcon, SparklesIcon, FireIcon } from '../components/Icons';
-import type { RoleplayScenario, DateIdea, RealWorldAdventure, RitualStepType, AdventureStyle } from '../types';
-import Loader from '../components/Loader';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { useCouple } from '../contexts/CoupleContext';
+import { PuzzlePieceIcon, BookOpenIcon, MapPinIcon, HeartIcon, SparklesIcon, FireIcon } from '../src/components/Icons';
+import type { RoleplayScenario, DateIdea, RealWorldAdventure, RitualStepType, AdventureStyle } from '../src/types';
+import Loader from '../src/components/Loader';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { useCouple } from '../src/contexts/CoupleContext';
 
 
 const getLinkForStep = (type: RitualStepType): string => {

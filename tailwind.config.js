@@ -2,18 +2,11 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // Escanea todos los archivos de tu proyecto
+    // This now correctly scans for classes inside the 'src' directory.
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {
-        // Aquí puedes extender el tema de Tailwind con tus propios colores, fuentes, etc.
-        colors: {
-            'nexus-dark': '#0D1117',
-            'nexus-primary': '#6366F1',
-            'nexus-secondary': '#EC4899',
-            'nexus-accent': '#F59E0B',
-        },
-    },
+    extend: {},
   },
   plugins: [],
 }

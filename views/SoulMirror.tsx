@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { CompassIcon, SparklesIcon } from '../components/Icons';
-import PassionCompass from '../components/PassionCompass';
-import Loader from '../components/Loader';
-import FeedbackWidget from '../components/FeedbackWidget';
-import type { PassionCompassScores, SoulReflection, PassionPillar, StampCategory } from '../types';
-import { useCouple } from '../contexts/CoupleContext';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { CompassIcon, SparklesIcon } from '../src/components/Icons';
+import PassionCompass from '../src/components/PassionCompass';
+import Loader from '../src/components/Loader';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import type { PassionCompassScores, SoulReflection, PassionPillar, StampCategory } from '../src/types';
+import { useCouple } from '../src/contexts/CoupleContext';
 
 const pillarMapping: Record<StampCategory, PassionPillar> = {
     'Cita Memorable': 'Conexión Emocional',

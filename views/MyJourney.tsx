@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import Accordion from '../components/Accordion';
-import { HeartIcon } from '../components/Icons';
-import { PersonalChallenge } from '../types';
-import Loader from '../components/Loader';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { useCouple } from '../contexts/CoupleContext';
+import Accordion from '../src/components/Accordion';
+import { HeartIcon } from '../src/components/Icons';
+import { PersonalChallenge } from '../src/types';
+import Loader from '../src/components/Loader';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { useCouple } from '../src/contexts/CoupleContext';
 
 const MyJourney: React.FC = () => {
   const { api } = useCouple();

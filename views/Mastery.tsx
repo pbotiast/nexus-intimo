@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { KeyIcon, BookmarkSquareIcon } from '../components/Icons';
-import Accordion from '../components/Accordion';
+import { KeyIcon, BookmarkSquareIcon } from '../src/components/Icons';
+import Accordion from '../src/components/Accordion';
 import { sexualPositions } from '../data/positions';
-import type { SexualPosition } from '../types';
-import { openPassportModal } from '../components/PassportModal';
+import type { SexualPosition } from '../src/types';
+import { openPassportModal } from '../src/components/PassportModal';
 
 type FilterType = 'all' | SexualPosition['type'];
 

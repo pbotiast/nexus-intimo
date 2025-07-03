@@ -9,12 +9,15 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Esta ruta relativa estándar funcionará con la configuración explícita de Vite -->
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
 <script>
-  // Este script se ejecuta antes de que React se monte
-  // Aquí puedes agregar cualquier lógica de inicialización si es necesario
-  console.log('Nexus Íntimo - Aplicación para conectar con tu pareja');
+  // Detect if the user is using a mobile device
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  
+  // Redirect to the mobile version if on a mobile device
+  if (isMobile) {
+    window.location.href = '/nexus-intimo-mobile';
+  }
 </script>

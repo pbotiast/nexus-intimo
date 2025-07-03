@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { DocumentDuplicateIcon, SparklesIcon } from '../components/Icons';
-import Loader from '../components/Loader';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
-import { useCouple } from '../contexts/CoupleContext';
+import { DocumentDuplicateIcon, SparklesIcon } from '../src/components/Icons';
+import Loader from '../src/components/Loader';
+import FeedbackWidget from '../src/components/FeedbackWidget';
+import { useAiPreferences } from '../src/hooks/useAiPreferences';
+import { useCouple } from '../src/contexts/CoupleContext';
 
 const TandemJournal: React.FC = () => {
     const { coupleData, api } = useCouple();

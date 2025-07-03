@@ -1,5 +1,5 @@
 
-import type { AudioGuide } from '../types';
+import type { AudioGuide } from '../src/types';
 
 export const audioGuides: AudioGuide[] = [
     {

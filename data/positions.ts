@@ -1,5 +1,5 @@
 
-import { SexualPosition } from '../types';
+import { SexualPosition } from '../src/types';
 
 export const sexualPositions: SexualPosition[] = [
     { 
