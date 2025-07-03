@@ -133,6 +133,13 @@ app.post('/api/couples/join', (req, res) => {
     // Validate the code is a string and exists in our records.
     if (typeof code === 'string' && Object.prototype.hasOwnProperty.call(pairingCodes, code)) {
         const coupleId = pairingCodes[code];
+
+        // FIX: Add an explicit check for coupleId to satisfy TypeScript's static analysis.
+        if (!coupleId) {
+            delete pairingCodes[code]; // Clean up stale code
+            return res.status(404).json({ message: 'Could not retrieve session for this code.' });
+        }
+
         const session = coupleSessions[coupleId];
 
         if (!session) {
@@ -245,7 +252,6 @@ app.post('/api/couples/:coupleId/journal/answer', getSession, (req, res) => {
 app.post('/api/couples/:coupleId/stamps', getSession, (req, res) => {
     const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
     res.locals.session.sharedData.stamps.push(newStamp);
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(201).json({ success: true });
 });
@@ -253,7 +259,6 @@ app.post('/api/couples/:coupleId/stamps', getSession, (req, res) => {
 app.post('/api/couples/:coupleId/wishes', getSession, (req, res) => {
     const newWish = { ...req.body, id: new Date().toISOString() };
     res.locals.session.sharedData.wishes.push(newWish);
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(201).json({ success: true });
 });
@@ -266,14 +271,12 @@ app.post('/api/couples/:coupleId/bodyMarks', getSession, (req, res) => {
     } else {
         res.locals.session.sharedData.bodyMarks.push({ bodyPart, mark });
     }
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
 
 app.post('/api/couples/:coupleId/tandemJournal', getSession, (req, res) => {
     res.locals.session.sharedData.tandemEntry = req.body.entry;
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
@@ -283,28 +286,24 @@ app.post('/api/couples/:coupleId/keys', getSession, (req, res) => {
     if (typeof amount === 'number') {
         res.locals.session.sharedData.keys += amount;
     }
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
 
 app.post('/api/couples/:coupleId/sexDice', getSession, (req, res) => {
     res.locals.session.sharedData.sexDice = req.body.diceData;
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
 
 app.post('/api/couples/:coupleId/aiPreferences', getSession, (req, res) => {
     res.locals.session.sharedData.aiPreferences = req.body.preferences;
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
 
 app.post('/api/couples/:coupleId/weeklyMission', getSession, (req, res) => {
     res.locals.session.sharedData.weeklyMission = req.body.mission;
-    // FIX: Use the validated coupleId from the session object.
     sendUpdateToCouple(res.locals.session.id);
     res.status(200).json({ success: true });
 });
