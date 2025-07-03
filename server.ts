@@ -98,20 +98,38 @@ app.post('/api/couples/join', (req, res) => {
     }
 });
 
+// FIX: This route is updated to safely handle the session object.
 app.get('/api/couples/:coupleId/events', (req, res) => {
     const { coupleId } = req.params;
-    if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
+
+    // First, check if coupleId is a valid string.
+    if (typeof coupleId !== 'string') {
+        return res.status(400).json({ message: 'Invalid couple ID format.' });
+    }
+
+    // Then, retrieve the session into a constant.
+    const session = coupleSessions[coupleId];
+
+    // Now, check if that constant is valid.
+    if (!session) {
         return res.status(404).json({ message: 'Session not found.' });
     }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
-    coupleSessions[coupleId].clients.push(res);
+    
+    // Use the safe 'session' variable.
+    session.clients.push(res);
+    
     req.on('close', () => {
-        coupleSessions[coupleId].clients = coupleSessions[coupleId].clients.filter(c => c !== res);
+        // The 'session' variable is safely captured in the closure.
+        // It's now safe to use it here without re-checking.
+        session.clients = session.clients.filter(c => c !== res);
     });
 });
+
 
 // --- Other API routes... ---
 // (No changes to other API routes)
@@ -126,7 +144,7 @@ app.post('/api/couples/:coupleId/story', (req, res) => {
 // --- STATIC FILE SERVING & FALLBACK ---
 // This section MUST come AFTER all your API routes have been defined.
 
-// FIX: The static files (index.html, css, js) are in the same 'dist' directory
+// The static files (index.html, css, js) are in the same 'dist' directory
 // as the compiled server.js. Therefore, __dirname is the correct path.
 console.log(`Serving static files from: ${__dirname}`);
 app.use(express.static(__dirname));
@@ -168,32 +186,3 @@ async function generateAndRespond(res: Response, prompt: string) {
         res.status(500).json({ message: "Failed to generate AI response." });
     }
 }
-// --- DIAGNOSTIC LOGS ---
-console.log("Server started successfully.");
-console.log(`API_KEY is set: ${!!API_KEY}`);
-console.log(`Listening on port ${PORT}.`);
-console.log(`Serving static files from: ${__dirname}`);
-console.log("In-memory couple sessions initialized.");
-console.log("Pairing codes initialized.");
-console.log("Gemini AI model configured successfully.");
-console.log("Express server is ready to handle requests.");
-console.log("All API routes are set up.");
-console.log("Static file serving and fallback route configured.");
-console.log("Error handling middleware is active.");
-console.log("Server is ready to accept connections.");
-console.log("Server is running in development mode with CORS enabled.");
-console.log("Logging middleware is active for all incoming requests.");
-console.log("Server is ready to handle couple sessions and AI interactions.");
-console.log("Ready to serve the Nexus Íntimo application.");
-console.log("Ensure the API_KEY is valid and has the necessary permissions.");
-console.log("Check the console for any errors or warnings during startup.");
-console.log("Server is running in production mode with optimizations enabled.");
-console.log("All routes are functioning as expected."); 
-console.log("Server is ready to handle requests for Nexus Íntimo.");
-console.log("Nexus Íntimo server is fully operational.");
-console.log("Ready to serve the Nexus Íntimo application with AI capabilities.");
-console.log("Server is running with the latest code changes.");
-console.log("Nexus Íntimo server is ready for production use.");
-console.log("Server is ready to handle couple sessions and AI interactions.");
-console.log("Nexus Íntimo server is fully operational with AI capabilities.");
-console.log("Nexus Íntimo server is ready to serve the application.");
