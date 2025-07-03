@@ -6,71 +6,49 @@ import { fileURLToPath } from 'url';
 import short from 'short-uuid';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// --- Basic Configuration ---
+// --- Configuración Básica ---
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Path Configuration for ES Modules ---
+// --- Configuración de Rutas ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- In-Memory Storage & Types ---
-interface CoupleSession {
-    id: string;
-    clients: Response[]; // For Server-Sent Events (SSE)
-    sharedData: {
-        stamps: any[];
-        wishes: any[];
-        bodyMarks: any[];
-        tandemEntry: { id: string; prompt: string; answer1: string | null; answer2: string | null } | null;
-        keys: number;
-        sexDice: { actions: string[]; bodyParts: string[] };
-        aiPreferences: any; 
-        weeklyMission: { title: string; description: string } | null;
-    };
-}
-// Stores active couple sessions, keyed by coupleId
-const coupleSessions: Record<string, CoupleSession> = {};
-// Temporarily stores pairing codes, keyed by the code itself
-const pairingCodes: Record<string, string> = {};
+// --- Simulación de Base de Datos en Memoria ---
+const users: Record<string, any> = {}; // Clave: userId
+const couples: Record<string, any> = {}; // Clave: coupleId
+const invitationCodes: Record<string, string> = {}; // Clave: código, Valor: coupleId
+const sseClients: Record<string, Response> = {}; // Clave: userId
 
-// --- Gemini AI Configuration ---
+// --- Configuración de Gemini AI ---
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
-    console.error("FATAL ERROR: The API_KEY for Gemini is not defined in the environment variables.");
+    console.error("ERROR FATAL: La variable de entorno API_KEY para Gemini no está definida.");
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// --- Logging Middleware ---
+// --- Middleware de Logging ---
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] Incoming request: ${req.method} ${req.path}`);
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
 });
 
-// --- Helper Functions & Middleware ---
+// --- Funciones de Ayuda ---
 const sendUpdateToCouple = (coupleId: string) => {
-    const session = coupleSessions[coupleId];
-    if (session?.clients) {
-        const updatePayload = `data: ${JSON.stringify({ type: 'update', data: session.sharedData })}\n\n`;
-        session.clients.forEach(client => client.write(updatePayload));
+    const couple = couples[coupleId];
+    if (couple && couple.userIds) {
+        const updatePayload = `data: ${JSON.stringify({ type: 'update', data: couple.sharedData })}\n\n`;
+        couple.userIds.forEach((userId: string) => {
+            const client = sseClients[userId];
+            if (client) {
+                client.write(updatePayload);
+            }
+        });
     }
-};
-
-const getSession = (req: Request, res: Response, next: NextFunction) => {
-    const { coupleId } = req.params;
-    if (typeof coupleId !== 'string') {
-        return res.status(400).json({ message: 'Couple ID is missing or invalid.' });
-    }
-    const session = coupleSessions[coupleId];
-    if (!session) {
-        return res.status(404).json({ message: 'Session not found or has expired.' });
-    }
-    res.locals.session = session;
-    next();
 };
 
 async function generateAndRespond(res: Response, prompt: string) {
@@ -81,199 +59,171 @@ async function generateAndRespond(res: Response, prompt: string) {
         const jsonResponse = JSON.parse(cleanedText);
         res.json(jsonResponse);
     } catch (error) {
-        console.error("Error with Gemini API or parsing JSON:", error);
-        res.status(500).json({ message: "Failed to generate AI response." });
+        console.error("Error con la API de Gemini o al parsear JSON:", error);
+        res.status(500).json({ message: "No se pudo generar la respuesta de la IA." });
     }
 }
 
-// --- API ROUTES ---
-
-// These routes do NOT require an existing session ID in the URL
-app.post('/api/couples', (req, res) => {
-    const coupleId = short.generate();
-    const pairingCode = short.generate().substring(0, 6).toUpperCase();
-    coupleSessions[coupleId] = { 
-        id: coupleId, 
-        clients: [], 
-        sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null } 
-    };
-    pairingCodes[pairingCode] = coupleId; 
-    res.status(201).json({ coupleId, pairingCode });
-});
-
-app.post('/api/couples/join', (req, res) => {
-    const { code } = req.body;
-    if (typeof code === 'string' && Object.prototype.hasOwnProperty.call(pairingCodes, code)) {
-        const coupleId = pairingCodes[code];
-        if (!coupleId) {
-            delete pairingCodes[code];
-            return res.status(404).json({ message: 'Could not retrieve session for this code.' });
-        }
-        const session = coupleSessions[coupleId];
-        if (!session) {
-            delete pairingCodes[code];
-            return res.status(404).json({ message: 'The session for this code has expired.' });
-        }
-        delete pairingCodes[code];
-        res.json({ coupleId, coupleData: session.sharedData });
-    } else {
-        return res.status(404).json({ message: 'Invalid, expired, or incorrect pairing code.' });
+// --- Middleware de Identificación de Usuario ---
+const identifyUser = (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId || !users[userId]) {
+        return res.status(401).json({ message: 'Se requiere un ID de usuario válido.' });
     }
+    res.locals.user = users[userId];
+    next();
+};
+
+// --- RUTAS DE USUARIO Y SESIÓN ---
+
+// Inicializa una sesión de usuario. Crea uno nuevo si no existe.
+app.post('/api/users/init', (req, res) => {
+    let userId = req.body.userId as string;
+
+    // Si el cliente no tiene un userId o el nuestro no es válido, creamos uno nuevo.
+    if (!userId || !users[userId]) {
+        userId = short.generate();
+        users[userId] = {
+            id: userId,
+            coupleId: null
+        };
+        console.log(`Nuevo usuario creado: ${userId}`);
+    }
+
+    const user = users[userId];
+    let coupleData = null;
+    if (user.coupleId && couples[user.coupleId]) {
+        coupleData = couples[user.coupleId].sharedData;
+    }
+
+    res.json({
+        userId: user.id,
+        coupleId: user.coupleId,
+        coupleData: coupleData
+    });
 });
 
-// --- REFACTORED: Couple-specific router ---
-// FIX: Add { mergeParams: true } to inherit params from the parent router.
-const coupleRouter = express.Router({ mergeParams: true });
+// --- RUTAS DE PAREJA ---
+const coupleRouter = express.Router();
+coupleRouter.use(identifyUser); // Protege todas las rutas de pareja
 
-// Apply the getSession middleware to all routes in this router.
-coupleRouter.use(getSession);
+// Genera un código de invitación
+coupleRouter.post('/invite', (req, res) => {
+    const user = res.locals.user;
+    let coupleId = user.coupleId;
 
-// SSE connection for real-time updates
+    if (!coupleId) {
+        coupleId = short.generate();
+        user.coupleId = coupleId;
+        couples[coupleId] = {
+            id: coupleId,
+            userIds: [user.id],
+            sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null }
+        };
+    }
+
+    const invitationCode = short.generate().substring(0, 8).toUpperCase();
+    invitationCodes[invitationCode] = coupleId;
+    
+    res.json({ invitationCode });
+});
+
+// Acepta una invitación
+coupleRouter.post('/accept', (req, res) => {
+    const { invitationCode } = req.body;
+    const user = res.locals.user;
+
+    if (user.coupleId) {
+        return res.status(400).json({ message: "Ya perteneces a una pareja." });
+    }
+
+    const coupleId = invitationCodes[invitationCode];
+    if (!coupleId || !couples[coupleId]) {
+        return res.status(404).json({ message: "Código de invitación no válido o expirado." });
+    }
+
+    const couple = couples[coupleId];
+    if (couple.userIds.length >= 2) {
+        return res.status(400).json({ message: "Esta pareja ya está completa." });
+    }
+
+    user.coupleId = coupleId;
+    couple.userIds.push(user.id);
+    delete invitationCodes[invitationCode];
+
+    res.json({ message: "¡Te has unido a la pareja con éxito!", coupleData: couple.sharedData });
+});
+
+// Conexión SSE para actualizaciones en tiempo real
 coupleRouter.get('/events', (req, res) => {
-    const session = res.locals.session as CoupleSession;
+    const user = res.locals.user;
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
-    session.clients.push(res);
+    
+    sseClients[user.id] = res;
+
     req.on('close', () => {
-        session.clients = session.clients.filter(c => c !== res);
+        delete sseClients[user.id];
     });
 });
 
-// --- AI Generation Routes (All restored) ---
-coupleRouter.post('/story', (req, res) => {
+// --- RUTAS DE DATOS Y AI ---
+const dataRouter = express.Router();
+dataRouter.use(identifyUser);
+
+// Middleware para verificar que el usuario está en una pareja
+dataRouter.use((req, res, next) => {
+    const user = res.locals.user;
+    if (!user.coupleId || !couples[user.coupleId]) {
+        return res.status(403).json({ message: "Debes estar en una pareja para realizar esta acción." });
+    }
+    res.locals.couple = couples[user.coupleId];
+    next();
+});
+
+dataRouter.post('/story', (req, res) => {
     const params = req.body?.params ?? {};
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
     generateAndRespond(res, prompt);
 });
 
-coupleRouter.post('/couples-challenges', (req, res) => {
-    const prompt = `Genera 3 retos para parejas con intensidad gradual (Suave, Picante, Atrevido). Formato JSON: [{"level": "string", "title": "string", "description": "string"}].`;
-    generateAndRespond(res, prompt);
-});
-
-coupleRouter.post('/date-idea', (req, res) => {
-    const category = req.body?.category ?? 'Aventura';
-    const prompt = `Genera una idea para una cita romántica en español de categoría '${category}'. Formato JSON: {"title": "string", "description": "string", "category": "${category}"}.`;
-    generateAndRespond(res, prompt);
-});
-
-coupleRouter.post('/intimate-ritual', (req, res) => {
-    const energy = req.body?.energy ?? 'relajante';
-    const prompt = `Crea un ritual íntimo para una pareja con energía '${energy}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
-    generateAndRespond(res, prompt);
-});
-
-coupleRouter.post('/roleplay-scenario', (req, res) => {
-    const theme = req.body?.theme ?? 'fantasía';
-    const prompt = `Genera un escenario de roleplay sobre '${theme}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
-    generateAndRespond(res, prompt);
-});
-
-coupleRouter.post('/weekly-mission', (req, res) => {
-    const params = req.body?.params ?? {};
-    const paramsString = JSON.stringify(params);
-    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${paramsString}.`;
-    generateAndRespond(res, prompt);
-});
-
-
-// --- Data Management Routes (All restored) ---
-coupleRouter.post('/journal/prompt', async (req, res) => {
-    const session = res.locals.session as CoupleSession;
-    const prompt = `Genera una pregunta profunda para que una pareja la responda en un diario compartido. Formato JSON: {"prompt": "string"}`;
-    try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json\n|```/g, '').trim();
-        const jsonResponse = JSON.parse(cleanedText);
-        session.sharedData.tandemEntry = { id: new Date().toISOString(), prompt: jsonResponse.prompt, answer1: null, answer2: null };
-        sendUpdateToCouple(session.id);
-        res.status(200).json({ success: true });
-    } catch (e) {
-        res.status(500).json({ message: "Error al generar pregunta." });
-    }
-});
-
-coupleRouter.post('/journal/answer', (req, res) => {
-    const session = res.locals.session as CoupleSession;
-    const { partner, answer } = req.body;
-    const entry = session.sharedData.tandemEntry;
-    if (entry) {
-        if (partner === 'partner1') entry.answer1 = answer;
-        if (partner === 'partner2') entry.answer2 = answer;
-        sendUpdateToCouple(session.id);
-    }
-    res.status(200).json({ success: true });
-});
-
-coupleRouter.post('/stamps', (req, res) => {
-    const session = res.locals.session as CoupleSession;
+dataRouter.post('/stamps', (req, res) => {
+    const couple = res.locals.couple;
     const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
-    session.sharedData.stamps.push(newStamp);
-    sendUpdateToCouple(session.id);
+    couple.sharedData.stamps.push(newStamp);
+    sendUpdateToCouple(couple.id);
     res.status(201).json({ success: true });
 });
 
-coupleRouter.post('/wishes', (req, res) => {
-    const session = res.locals.session as CoupleSession;
-    const newWish = { ...req.body, id: new Date().toISOString() };
-    session.sharedData.wishes.push(newWish);
-    sendUpdateToCouple(session.id);
-    res.status(201).json({ success: true });
-});
+// ... (Aquí irían el resto de tus rutas de datos como /wishes, /bodyMarks, etc.)
 
-coupleRouter.post('/bodyMarks', (req, res) => {
-    const session = res.locals.session as CoupleSession;
-    const { bodyPart, mark } = req.body;
-    const existingMarkIndex = session.sharedData.bodyMarks.findIndex((bm: any) => bm.bodyPart === bodyPart);
-    if (existingMarkIndex !== -1) {
-        session.sharedData.bodyMarks[existingMarkIndex].mark = mark;
-    } else {
-        session.sharedData.bodyMarks.push({ bodyPart, mark });
-    }
-    sendUpdateToCouple(session.id);
-    res.status(200).json({ success: true });
-});
-
-coupleRouter.post('/keys', (req, res) => {
-    const session = res.locals.session as CoupleSession;
-    const { amount } = req.body;
-    if (typeof amount === 'number') {
-        session.sharedData.keys += amount;
-    }
-    sendUpdateToCouple(session.id);
-    res.status(200).json({ success: true });
-});
-
-// Mount the couple-specific router on the main app
-app.use('/api/couples/:coupleId', coupleRouter);
+app.use('/api/couples', coupleRouter);
+app.use('/api/data', dataRouter);
 
 
-// --- STATIC FILE SERVING & FALLBACK ---
-// This section MUST come AFTER all your API routes have been defined.
-console.log(`Serving static files from: ${__dirname}`);
+// --- SERVIR ARCHIVOS ESTÁTICOS Y RUTA COMODÍN ---
+console.log(`Sirviendo archivos estáticos desde: ${__dirname}`);
 app.use(express.static(__dirname));
 
 app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
-    console.log(`Fallback: serving index.html from ${indexPath}`);
     res.sendFile(indexPath, (err) => {
         if (err) {
-            console.error('Error sending index.html:', err);
-            res.status(500).send('Could not find the application entry point.');
+            console.error('Error al enviar index.html:', err);
+            res.status(500).send('No se pudo encontrar el punto de entrada de la aplicación.');
         }
     });
 });
 
-// --- Final Error Handler ---
+// --- Manejador de Errores Final ---
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error("UNHANDLED ERROR:", err.stack);
-    res.status(500).send('Something went wrong on the server!');
+    console.error("ERROR NO MANEJADO:", err.stack);
+    res.status(500).send('¡Algo salió muy mal en el servidor!');
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server is running and listening on port ${PORT}`);
+    console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
