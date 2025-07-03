@@ -38,7 +38,6 @@ const pairingCodes: Record<string, string> = {};
 
 // --- Gemini AI Configuration ---
 const API_KEY = process.env.API_KEY;
-// Fail-fast if the API key is not configured
 if (!API_KEY) {
     console.error("FATAL ERROR: The API_KEY for Gemini is not defined in the environment variables.");
     process.exit(1);
@@ -52,27 +51,51 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- API ROUTES ---
-// All API-specific routes are defined BEFORE the static file serving and fallback.
+// --- Helper Functions & Middleware ---
+const sendUpdateToCouple = (coupleId: string) => {
+    const session = coupleSessions[coupleId];
+    if (session?.clients) {
+        const updatePayload = `data: ${JSON.stringify({ type: 'update', data: session.sharedData })}\n\n`;
+        session.clients.forEach(client => client.write(updatePayload));
+    }
+};
 
-// --- SESSION MANAGEMENT ROUTES ---
+const getSession = (req: Request, res: Response, next: NextFunction) => {
+    const { coupleId } = req.params;
+    if (typeof coupleId !== 'string') {
+        return res.status(400).json({ message: 'Couple ID is missing or invalid.' });
+    }
+    const session = coupleSessions[coupleId];
+    if (!session) {
+        return res.status(404).json({ message: 'Session not found or has expired.' });
+    }
+    res.locals.session = session;
+    next();
+};
+
+async function generateAndRespond(res: Response, prompt: string) {
+    try {
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json\n|```/g, '').trim();
+        const jsonResponse = JSON.parse(cleanedText);
+        res.json(jsonResponse);
+    } catch (error) {
+        console.error("Error with Gemini API or parsing JSON:", error);
+        res.status(500).json({ message: "Failed to generate AI response." });
+    }
+}
+
+// --- API ROUTES ---
+
+// These routes do NOT require an existing session ID in the URL
 app.post('/api/couples', (req, res) => {
     const coupleId = short.generate();
     const pairingCode = short.generate().substring(0, 6).toUpperCase();
-    
     coupleSessions[coupleId] = { 
         id: coupleId, 
         clients: [], 
-        sharedData: { 
-            stamps: [], 
-            wishes: [], 
-            bodyMarks: [], 
-            tandemEntry: null, 
-            keys: 0, 
-            sexDice: { actions: [], bodyParts: [] }, 
-            aiPreferences: {}, 
-            weeklyMission: null 
-        } 
+        sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null } 
     };
     pairingCodes[pairingCode] = coupleId; 
     res.status(201).json({ coupleId, pairingCode });
@@ -98,59 +121,65 @@ app.post('/api/couples/join', (req, res) => {
     }
 });
 
-// FIX: This route is updated to safely handle the session object.
-app.get('/api/couples/:coupleId/events', (req, res) => {
-    const { coupleId } = req.params;
+// --- REFACTORED: Couple-specific router ---
+// This router will handle all routes that have a /:coupleId parameter.
+const coupleRouter = express.Router();
 
-    // First, check if coupleId is a valid string.
-    if (typeof coupleId !== 'string') {
-        return res.status(400).json({ message: 'Invalid couple ID format.' });
-    }
+// Apply the getSession middleware to all routes in this router.
+// This validates the session and attaches it to res.locals for every request.
+coupleRouter.use(getSession);
 
-    // Then, retrieve the session into a constant.
-    const session = coupleSessions[coupleId];
-
-    // Now, check if that constant is valid.
-    if (!session) {
-        return res.status(404).json({ message: 'Session not found.' });
-    }
-
+// SSE connection for real-time updates
+coupleRouter.get('/events', (req, res) => {
+    const session = res.locals.session as CoupleSession;
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
-    
-    // Use the safe 'session' variable.
     session.clients.push(res);
-    
     req.on('close', () => {
-        // The 'session' variable is safely captured in the closure.
-        // It's now safe to use it here without re-checking.
         session.clients = session.clients.filter(c => c !== res);
     });
 });
 
-
-// --- Other API routes... ---
-// (No changes to other API routes)
-app.post('/api/couples/:coupleId/story', (req, res) => {
+// AI Generation Routes
+coupleRouter.post('/story', (req, res) => {
     const params = req.body?.params ?? {};
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
     generateAndRespond(res, prompt);
 });
-// ... all other /api routes ...
+
+coupleRouter.post('/couples-challenges', (req, res) => {
+    const prompt = `Genera 3 retos para parejas con intensidad gradual (Suave, Picante, Atrevido). Formato JSON: [{"level": "string", "title": "string", "description": "string"}].`;
+    generateAndRespond(res, prompt);
+});
+
+// Data Management Routes
+coupleRouter.post('/stamps', (req, res) => {
+    const session = res.locals.session as CoupleSession;
+    const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
+    session.sharedData.stamps.push(newStamp);
+    sendUpdateToCouple(session.id);
+    res.status(201).json({ success: true });
+});
+
+coupleRouter.post('/wishes', (req, res) => {
+    const session = res.locals.session as CoupleSession;
+    const newWish = { ...req.body, id: new Date().toISOString() };
+    session.sharedData.wishes.push(newWish);
+    sendUpdateToCouple(session.id);
+    res.status(201).json({ success: true });
+});
+
+// Mount the couple-specific router on the main app
+app.use('/api/couples/:coupleId', coupleRouter);
 
 
 // --- STATIC FILE SERVING & FALLBACK ---
 // This section MUST come AFTER all your API routes have been defined.
-
-// The static files (index.html, css, js) are in the same 'dist' directory
-// as the compiled server.js. Therefore, __dirname is the correct path.
 console.log(`Serving static files from: ${__dirname}`);
 app.use(express.static(__dirname));
 
-// For any request that doesn't match an API route or a static file,
-// send the main index.html file. This is for client-side routing.
 app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
     console.log(`Fallback: serving index.html from ${indexPath}`);
@@ -172,17 +201,3 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Server is running and listening on port ${PORT}`);
 });
-
-// --- Helper function for AI generation ---
-async function generateAndRespond(res: Response, prompt: string) {
-    try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json\n|```/g, '').trim();
-        const jsonResponse = JSON.parse(cleanedText);
-        res.json(jsonResponse);
-    } catch (error) {
-        console.error("Error with Gemini API or parsing JSON:", error);
-        res.status(500).json({ message: "Failed to generate AI response." });
-    }
-}
