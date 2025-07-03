@@ -1,9 +1,11 @@
+// src/contexts/CoupleContext.tsx - CÓDIGO FINAL Y COMPLETO
+
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import * as api from '../services/api';
-import { CoupleContextType, CoupleData, StampData, PreferenceCategory, Feedback, Wish, BodyMark, StoryParams, GeneratedStory, PersonalChallenge } from '../types';
-import PairingModal from '../components/PairingModal';
-import Loader from '../components/Loader';
+import { CoupleContextType, CoupleData } from '../types';
+import PairingModal from '../components/PairingModal.tsx';
+import Loader from '../components/Loader.tsx';
 
 const CoupleContext = createContext<CoupleContextType | undefined>(undefined);
 
@@ -16,48 +18,40 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     
     const isPaired = !!coupleId && !!coupleData;
 
+    const fetchAndSetData = useCallback(async (id: string) => {
+        try {
+            const data = await api.getCoupleData(id);
+            setCoupleData(data);
+        } catch (e) {
+            console.error("Session validation failed", e);
+            setCoupleId(null);
+            setCoupleData(null);
+        }
+    }, [setCoupleId]);
+
     useEffect(() => {
-        const validateSession = async () => {
-            if (coupleId) {
-                try {
-                    const data = await api.getCoupleData(coupleId);
-                    setCoupleData(data);
-                } catch (e) {
-                    console.error("Session validation failed", e);
-                    setCoupleId(null); // Invalid session, clear it
-                    setCoupleData(null);
-                }
-            }
-            setIsLoading(false);
-        };
-        validateSession();
-    }, [coupleId, setCoupleId]);
+        if (coupleId) {
+            fetchAndSetData(coupleId);
+        }
+        setIsLoading(false);
+    }, [coupleId, fetchAndSetData]);
 
     useEffect(() => {
         if (!coupleId) return;
-
-        // Ensure the API base URL is determined correctly for production and development
-        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
-            ? 'http://localhost:3001' 
-            : ''; // In production, it's a relative path
-
+        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '';
         const events = new EventSource(`${API_BASE_URL}/api/couples/${coupleId}/events`);
         
         events.onmessage = (event) => {
             const parsedEvent = JSON.parse(event.data);
             if (parsedEvent.type === 'update') {
-                setCoupleData(prevData => ({ ...prevData, ...parsedEvent.data } as CoupleData));
+                setCoupleData(parsedEvent.data);
             }
         };
-
         events.onerror = (err) => {
             console.error('SSE Error:', err);
             events.close();
         };
-
-        return () => {
-            events.close();
-        };
+        return () => events.close();
     }, [coupleId]);
 
     const createCoupleSession = useCallback(async () => {
@@ -67,14 +61,13 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const { coupleId: newCoupleId, pairingCode: newPairingCode } = await api.createCoupleSession();
             setCoupleId(newCoupleId);
             setPairingCode(newPairingCode);
-            const data = await api.getCoupleData(newCoupleId);
-            setCoupleData(data);
+            await fetchAndSetData(newCoupleId);
         } catch (e: any) {
-            setError(e.message || 'No se pudo crear la sesión. Por favor, inténtalo de nuevo.');
+            setError(e.message);
         } finally {
             setIsLoading(false);
         }
-    }, [setCoupleId]);
+    }, [setCoupleId, fetchAndSetData]);
 
     const joinCoupleSession = useCallback(async (code: string) => {
         setIsLoading(true);
@@ -85,9 +78,8 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setCoupleData(joinedCoupleData);
             setPairingCode(null);
         } catch (e: any) {
-            const errorMessage = e.message || "Error al unirse a la sesión. Revisa el código y tu conexión.";
-            setError(errorMessage);
-            throw new Error(errorMessage);
+            setError(e.message);
+            throw e;
         } finally {
             setIsLoading(false);
         }
@@ -100,17 +92,13 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, [setCoupleId]);
     
     const coupleApi = useMemo(() => {
-        const createHandler = <T, U>(apiFn: (coupleId: string, args: T) => Promise<U>) => {
-            return (args: T) => {
-                if (!coupleId) throw new Error("Not paired");
-                return apiFn(coupleId, args);
-            };
+        const createHandler = <T, U>(apiFn: (id: string, args: T) => Promise<U>) => (args: T) => {
+            if (!coupleId) throw new Error("Not paired");
+            return apiFn(coupleId, args);
         };
-        const createSimpleHandler = <U,>(apiFn: (coupleId: string) => Promise<U>) => {
-            return () => {
-                if (!coupleId) throw new Error("Not paired");
-                return apiFn(coupleId);
-            };
+        const createSimpleHandler = <U,>(apiFn: (id: string) => Promise<U>) => () => {
+            if (!coupleId) throw new Error("Not paired");
+            return apiFn(coupleId);
         };
         
         return {
@@ -129,13 +117,7 @@ export const CoupleProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             generateSoulMirrorReflection: createHandler(api.generateSoulMirrorReflection),
             generateDailySpark: createHandler(api.generateDailySpark),
             continueNexoChat: createHandler(api.continueNexoChat),
-            // --- FIX STARTS HERE ---
-            // Wrap the api.addStamp call in a new async function that returns void
-            addStamp: async (args: StampData) => {
-                if (!coupleId) throw new Error("Not paired");
-                await api.addStamp(coupleId, args); // We call the function but don't return its value
-            },
-            // --- FIX ENDS HERE ---
+            addStamp: createHandler(api.addStamp),
             deleteStamp: (id: string) => coupleId ? api.deleteStamp(coupleId, id) : Promise.reject("Not paired"),
             addWish: createHandler(api.addWish),
             revealWish: createSimpleHandler(api.revealWish),
