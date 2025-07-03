@@ -33,7 +33,8 @@ if (!API_KEY) {
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// CAMBIO AQUÍ: Usando el modelo gemini-2.5-flash
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // --- Funciones de Ayuda y Middleware ---
 const sendUpdateToCouple = (coupleId: string) => {
