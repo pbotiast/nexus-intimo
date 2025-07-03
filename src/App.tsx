@@ -1,106 +1,137 @@
-import React, { useState, useEffect, useContext, createContext } from 'react';
+// src/App.tsx - CÓDIGO COMPLETO
+
+import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 
-// 1. Importa la función de inicialización desde tu servicio de API
-import { initializeUser } from './services/api'; 
-
-// 2. Importa tus vistas y componentes
-import Home from './views/Home'; // Asegúrate de que la ruta es correcta
-import Sidebar from './components/Sidebar'; // Asegúrate de que la ruta es correcta
-// ... importa aquí el resto de tus vistas (StoryWeaver, Adventures, etc.)
+// Importa tus vistas y componentes
+import Home from './views/Home.tsx';
+import StoryWeaver from './views/StoryWeaver.tsx';
+import Adventures from './views/Adventures.tsx';
+import PassionPassport from './views/PassionPassport.tsx';
+import BodyMap from './views/BodyMap.tsx';
+import DesirePath from './views/DesirePath.tsx';
+import SoulMirror from './views/SoulMirror.tsx';
+import WishChest from './views/WishChest.tsx';
+import TandemJournal from './views/TandemJournal.tsx';
+import SexDice from './views/SexDice.tsx';
+import CouplesIntimacy from './views/CouplesIntimacy.tsx';
+import Mastery from './views/Mastery.tsx';
+import MyJourney from './views/MyJourney.tsx';
+import AudioGuides from './views/AudioGuides.tsx';
+import Sidebar from './components/Sidebar.tsx';
+import PairingPage from './views/PairingPage.tsx'; // Importa la nueva página
 
 // --- Contexto de Autenticación Anónima ---
-// Esto permite que cualquier componente sepa si el usuario está cargando o ya tiene un ID.
 interface AuthContextType {
     userId: string | null;
+    coupleId: string | null;
     isLoading: boolean;
+    setCoupleId: (id: string | null) => void;
 }
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Un "hook" personalizado para acceder fácilmente al contexto
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error("useAuth debe ser usado dentro de un AuthProvider");
-    }
+    if (!context) throw new Error("useAuth must be used within an AuthProvider");
     return context;
 };
-// --- Fin del Contexto ---
 
+// --- Componente de Layout Principal ---
+const AppLayout = () => {
+    const { coupleId } = useAuth();
 
-// --- Definición de la Estructura y Rutas de la App ---
+    // Si el usuario está autenticado pero no tiene pareja, lo enviamos a la página de emparejamiento.
+    if (!coupleId) {
+        return <PairingPage />;
+    }
 
-// El layout principal de la aplicación con la barra lateral
-const AppLayout = () => (
-    <div className="flex h-screen bg-gray-900 text-white">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-            <Outlet /> {/* Aquí se renderizarán las vistas según la ruta */}
-        </main>
-    </div>
-);
+    return (
+        <div className="flex h-screen bg-brand-navy text-white">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto p-4 md:p-8">
+                <Outlet />
+            </main>
+        </div>
+    );
+};
 
-// El enrutador de la aplicación
+// --- Definición de Rutas ---
 const router = createBrowserRouter([
     {
         path: '/',
         element: <AppLayout />,
         children: [
             { index: true, element: <Home /> },
-            // { path: 'story-weaver', element: <StoryWeaver /> },
-            // { path: 'adventures', element: <Adventures /> },
-            // ... define aquí todas tus otras rutas
+            { path: 'story-weaver', element: <StoryWeaver /> },
+            { path: 'adventures', element: <Adventures /> },
+            { path: 'passion-passport', element: <PassionPassport /> },
+            { path: 'body-map', element: <BodyMap /> },
+            { path: 'desire-path', element: <DesirePath /> },
+            { path: 'soul-mirror', element: <SoulMirror /> },
+            { path: 'wish-chest', element: <WishChest /> },
+            { path: 'tandem-journal', element: <TandemJournal /> },
+            { path: 'sex-dice', element: <SexDice /> },
+            { path: 'couples-intimacy', element: <CouplesIntimacy /> },
+            { path: 'mastery', element: <Mastery /> },
+            { path: 'my-journey', element: <MyJourney /> },
+            { path: 'audio-guides', element: <AudioGuides /> },
         ],
     },
 ]);
 
-// --- Componentes de la App ---
 
-// Este componente decide qué mostrar: la pantalla de carga o la app principal
+// --- Componente Contenedor ---
+// Este componente decide qué mostrar basándose en el estado de autenticación.
 function AppContent() {
     const { isLoading, userId } = useAuth();
 
     if (isLoading) {
-        return <div className="w-screen h-screen flex justify-center items-center bg-gray-900 text-white">Cargando...</div>;
+        return <div className="w-screen h-screen flex justify-center items-center bg-brand-deep-purple text-white">Cargando tu sesión...</div>;
     }
-
     if (!userId) {
-        return <div className="w-screen h-screen flex justify-center items-center bg-gray-900 text-white">Error: No se pudo identificar al usuario. Por favor, refresca la página.</div>;
+        return <div className="w-screen h-screen flex justify-center items-center bg-brand-deep-purple text-red-400">Error crítico: No se pudo identificar al usuario. Por favor, refresca la página o borra las cookies.</div>;
     }
-
-    // Una vez que el usuario está identificado, muestra el enrutador con las vistas
     return <RouterProvider router={router} />;
 }
 
-// El componente raíz de toda la aplicación
+// --- Componente Principal de la App ---
 function App() {
     const [userId, setUserId] = useState<string | null>(null);
+    const [coupleId, setCoupleIdState] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Este useEffect se ejecuta solo una vez cuando la aplicación arranca
+    const setCoupleId = (id: string | null) => {
+        setCoupleIdState(id);
+    };
+
     useEffect(() => {
-        const init = async () => {
+        const initializeUser = async () => {
             try {
-                // 3. Llama a la función centralizada desde api.ts
-                const initData = await initializeUser(); 
-                setUserId(initData.userId);
-                // Aquí también podrías guardar los datos de la pareja en un estado global (Context, Zustand, etc.)
-                // por ejemplo: setCoupleData(initData.coupleData);
+                const response = await fetch('/api/users/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: localStorage.getItem('nexusIntimoUserId') })
+                });
+
+                if (!response.ok) throw new Error('Failed to initialize user session.');
+                
+                const data = await response.json();
+                
+                localStorage.setItem('nexusIntimoUserId', data.userId);
+                setUserId(data.userId);
+                setCoupleId(data.coupleId); // El backend nos dice si ya estamos en una pareja
+                console.log('User initialized:', data);
             } catch (error) {
                 console.error("Error initializing user:", error);
-                // Opcional: podrías mostrar un mensaje de error más visible al usuario
             } finally {
                 setIsLoading(false);
             }
         };
+        initializeUser();
+    }, []);
 
-        init();
-    }, []); // El array vacío [] asegura que se ejecute solo una vez.
-
-    // El AuthContext.Provider "envuelve" la app para que todos los componentes hijos
-    // puedan acceder a `userId` y `isLoading` a través del hook `useAuth`.
     return (
-        <AuthContext.Provider value={{ userId, isLoading }}>
+        <AuthContext.Provider value={{ userId, coupleId, isLoading, setCoupleId }}>
             <AppContent />
         </AuthContext.Provider>
     );
