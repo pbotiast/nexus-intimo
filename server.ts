@@ -122,11 +122,10 @@ app.post('/api/couples/join', (req, res) => {
 });
 
 // --- REFACTORED: Couple-specific router ---
-// This router will handle all routes that have a /:coupleId parameter.
-const coupleRouter = express.Router();
+// FIX: Add { mergeParams: true } to inherit params from the parent router.
+const coupleRouter = express.Router({ mergeParams: true });
 
 // Apply the getSession middleware to all routes in this router.
-// This validates the session and attaches it to res.locals for every request.
 coupleRouter.use(getSession);
 
 // SSE connection for real-time updates
@@ -142,7 +141,7 @@ coupleRouter.get('/events', (req, res) => {
     });
 });
 
-// AI Generation Routes
+// --- AI Generation Routes (All restored) ---
 coupleRouter.post('/story', (req, res) => {
     const params = req.body?.params ?? {};
     const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1", "párrafo 2"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
@@ -154,7 +153,61 @@ coupleRouter.post('/couples-challenges', (req, res) => {
     generateAndRespond(res, prompt);
 });
 
-// Data Management Routes
+coupleRouter.post('/date-idea', (req, res) => {
+    const category = req.body?.category ?? 'Aventura';
+    const prompt = `Genera una idea para una cita romántica en español de categoría '${category}'. Formato JSON: {"title": "string", "description": "string", "category": "${category}"}.`;
+    generateAndRespond(res, prompt);
+});
+
+coupleRouter.post('/intimate-ritual', (req, res) => {
+    const energy = req.body?.energy ?? 'relajante';
+    const prompt = `Crea un ritual íntimo para una pareja con energía '${energy}'. Formato JSON: {"title": "string", "steps": [{"title": "string", "description": "string", "type": "string"}]}.`;
+    generateAndRespond(res, prompt);
+});
+
+coupleRouter.post('/roleplay-scenario', (req, res) => {
+    const theme = req.body?.theme ?? 'fantasía';
+    const prompt = `Genera un escenario de roleplay sobre '${theme}'. Formato JSON: {"title": "string", "setting": "string", "character1": "string", "character2": "string", "plot": "string"}.`;
+    generateAndRespond(res, prompt);
+});
+
+coupleRouter.post('/weekly-mission', (req, res) => {
+    const params = req.body?.params ?? {};
+    const paramsString = JSON.stringify(params);
+    const prompt = `Genera una misión semanal para una pareja. Formato JSON: {"title": "string", "description": "string"}. Parámetros: ${paramsString}.`;
+    generateAndRespond(res, prompt);
+});
+
+
+// --- Data Management Routes (All restored) ---
+coupleRouter.post('/journal/prompt', async (req, res) => {
+    const session = res.locals.session as CoupleSession;
+    const prompt = `Genera una pregunta profunda para que una pareja la responda en un diario compartido. Formato JSON: {"prompt": "string"}`;
+    try {
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json\n|```/g, '').trim();
+        const jsonResponse = JSON.parse(cleanedText);
+        session.sharedData.tandemEntry = { id: new Date().toISOString(), prompt: jsonResponse.prompt, answer1: null, answer2: null };
+        sendUpdateToCouple(session.id);
+        res.status(200).json({ success: true });
+    } catch (e) {
+        res.status(500).json({ message: "Error al generar pregunta." });
+    }
+});
+
+coupleRouter.post('/journal/answer', (req, res) => {
+    const session = res.locals.session as CoupleSession;
+    const { partner, answer } = req.body;
+    const entry = session.sharedData.tandemEntry;
+    if (entry) {
+        if (partner === 'partner1') entry.answer1 = answer;
+        if (partner === 'partner2') entry.answer2 = answer;
+        sendUpdateToCouple(session.id);
+    }
+    res.status(200).json({ success: true });
+});
+
 coupleRouter.post('/stamps', (req, res) => {
     const session = res.locals.session as CoupleSession;
     const newStamp = { ...req.body.stampData, id: new Date().toISOString(), date: new Date().toLocaleDateString('es-ES') };
@@ -169,6 +222,29 @@ coupleRouter.post('/wishes', (req, res) => {
     session.sharedData.wishes.push(newWish);
     sendUpdateToCouple(session.id);
     res.status(201).json({ success: true });
+});
+
+coupleRouter.post('/bodyMarks', (req, res) => {
+    const session = res.locals.session as CoupleSession;
+    const { bodyPart, mark } = req.body;
+    const existingMarkIndex = session.sharedData.bodyMarks.findIndex((bm: any) => bm.bodyPart === bodyPart);
+    if (existingMarkIndex !== -1) {
+        session.sharedData.bodyMarks[existingMarkIndex].mark = mark;
+    } else {
+        session.sharedData.bodyMarks.push({ bodyPart, mark });
+    }
+    sendUpdateToCouple(session.id);
+    res.status(200).json({ success: true });
+});
+
+coupleRouter.post('/keys', (req, res) => {
+    const session = res.locals.session as CoupleSession;
+    const { amount } = req.body;
+    if (typeof amount === 'number') {
+        session.sharedData.keys += amount;
+    }
+    sendUpdateToCouple(session.id);
+    res.status(200).json({ success: true });
 });
 
 // Mount the couple-specific router on the main app
