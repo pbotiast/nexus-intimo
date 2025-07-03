@@ -41,6 +41,10 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 // --- Helper Functions ---
 const sendUpdateToCouple = (coupleId: string) => {
+    // FIX: Add type check for coupleId before using it as an index
+    if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
+        return;
+    }
     const session = coupleSessions[coupleId];
     if (session && session.clients) {
         const dataToSend = { ...session };
@@ -70,7 +74,6 @@ app.post('/api/couples', (req: Request, res: Response) => {
         clients: [],
     };
     pairingCodes[pairingCode] = coupleId;
-
     console.log(`Session created: ${coupleId} with code ${pairingCode}`);
     res.status(201).json({ coupleId, pairingCode });
 });
@@ -82,7 +85,6 @@ app.post('/api/couples/join', (req: Request, res: Response) => {
         return res.status(404).json({ message: 'Código de emparejamiento no válido o expirado.' });
     }
     const coupleId = pairingCodes[code];
-    // More robust check in case the session was cleared but the code wasn't
     if (!coupleSessions[coupleId]) {
         delete pairingCodes[code];
         return res.status(404).json({ message: 'La sesión asociada ha expirado. Por favor, crea una nueva.' });
@@ -98,16 +100,15 @@ app.get('/api/couples/:coupleId', (req: Request, res: Response) => {
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return res.status(404).json({ message: 'Sesión no encontrada.' });
     }
-    const coupleData = { ...coupleSessions[coupleId] };
-    delete (coupleData as any).clients;
-    res.json(coupleData);
+    const data = { ...coupleSessions[coupleId] };
+    delete (data as any).clients;
+    res.json(data);
 });
 
 // Server-Sent Events (SSE) endpoint
 app.get('/api/couples/:coupleId/events', (req, res) => {
     const { coupleId } = req.params;
-    if (!coupleSessions[coupleId]) {
-        console.log(`SSE connection denied for non-existent session: ${coupleId}`);
+    if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return res.status(404).end();
     }
 
@@ -118,72 +119,74 @@ app.get('/api/couples/:coupleId/events', (req, res) => {
 
     const session = coupleSessions[coupleId];
     session.clients.push(res);
-    console.log(`Client connected for SSE on couple ${coupleId}. Total clients: ${session.clients.length}`);
-
     req.on('close', () => {
         session.clients = session.clients.filter(client => client !== res);
-        console.log(`Client disconnected for SSE on couple ${coupleId}. Total clients: ${session.clients.length}`);
     });
 });
 
 // Generic AI interaction
 async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
-    try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const fullPrompt = `Contexto de la pareja: ${JSON.stringify(coupleData.sharedData)}\n\nTarea: ${prompt}`;
-        const result = await model.generateContent(fullPrompt);
-        const response = result.response;
-        const candidate = response.candidates?.[0];
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const fullPrompt = `Contexto de la pareja: ${JSON.stringify(coupleData.sharedData)}\n\nTarea: ${prompt}`;
+    const result = await model.generateContent(fullPrompt);
+    const response = result.response;
+    const candidate = response.candidates?.[0];
 
-        if (!candidate?.content?.parts?.[0]?.text) {
-            throw new Error("Invalid response structure from AI");
-        }
-        const text = candidate.content.parts[0].text;
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            return { text };
-        }
-    } catch (error) {
-        console.error("Error fetching from Gemini API:", error);
-        throw new Error("Failed to get response from AI");
+    if (!candidate?.content?.parts?.[0]?.text) {
+        throw new Error("Invalid response from AI");
+    }
+    const text = candidate.content.parts[0].text;
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        return { text };
     }
 }
 
-// Example AI-powered route
-app.post('/api/couples/:coupleId/generate-story', async (req: Request, res: Response) => {
+// --- MOCK API ENDPOINTS ---
+// This catch-all handles all POST requests to prevent 404s for unimplemented features.
+app.post('/api/couples/:coupleId/*', async (req: Request, res: Response) => {
     const { coupleId } = req.params;
-    const { params } = req.body;
-    if (!coupleSessions[coupleId]) {
+    const route = req.path;
+
+    // FIX: Add type check for coupleId before using it as an index
+    if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return res.status(404).json({ message: 'Sesión no encontrada.' });
     }
-    const prompt = `Genera una historia erótica corta con los siguientes parámetros: ${JSON.stringify(params)}`;
-    try {
-        const story = await fetchFromApi(prompt, coupleSessions[coupleId]);
-        res.json(story);
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
+    
+    console.log(`Mock response for: ${route}`);
+
+    // You can add specific logic for different routes here.
+    // For now, we'll just return a generic success or a mock AI response.
+    if (route.includes('generate')) {
+        try {
+            const mockPrompt = `Genera una respuesta de ejemplo para la ruta: ${route}`;
+            const aiResponse = await fetchFromApi(mockPrompt, coupleSessions[coupleId]);
+            return res.json(aiResponse);
+        } catch (error: any) {
+            return res.status(500).json({ message: error.message });
+        }
     }
+    
+    // For non-generate routes, just return a success message.
+    res.json({ message: `Mock response for ${route}`, success: true });
 });
 
-// --- Static File Serving & Final Setup ---
 
-// Serve the React frontend
-app.use(express.static(path.join(__dirname))); 
-// Let React Router handle all other GET requests
+// --- Static File Serving & Final Setup ---
+app.use(express.static(path.join(__dirname, '..'))); 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 // --- Error Handling ---
-// Global error handler to catch any unhandled errors
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error("UNHANDLED ERROR:", err);
     res.status(500).send('Something broke!');
 });
 process.on('uncaughtException', (err) => {
     console.error('There was an uncaught error', err);
-    process.exit(1); //mandatory (as per the Node.js docs)
+    process.exit(1);
 });
 
 const PORT = process.env.PORT || 3001;
