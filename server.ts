@@ -41,7 +41,6 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 // --- Helper Functions ---
 const sendUpdateToCouple = (coupleId: string) => {
-    // FIX: Add type check for coupleId before using it as an index
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return;
     }
@@ -57,12 +56,10 @@ const sendUpdateToCouple = (coupleId: string) => {
 
 // --- API Routes ---
 
-// Health check route
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Create a new couple session
 app.post('/api/couples', (req: Request, res: Response) => {
     const coupleId = short.generate();
     const pairingCode = short.generate().substring(0, 6).toUpperCase();
@@ -78,7 +75,6 @@ app.post('/api/couples', (req: Request, res: Response) => {
     res.status(201).json({ coupleId, pairingCode });
 });
 
-// Join a couple session
 app.post('/api/couples/join', (req: Request, res: Response) => {
     const { code } = req.body;
     if (typeof code !== 'string' || !pairingCodes[code]) {
@@ -94,7 +90,6 @@ app.post('/api/couples/join', (req: Request, res: Response) => {
     res.json({ coupleId, coupleData });
 });
 
-// Get session data
 app.get('/api/couples/:coupleId', (req: Request, res: Response) => {
     const { coupleId } = req.params;
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
@@ -105,7 +100,6 @@ app.get('/api/couples/:coupleId', (req: Request, res: Response) => {
     res.json(data);
 });
 
-// Server-Sent Events (SSE) endpoint
 app.get('/api/couples/:coupleId/events', (req, res) => {
     const { coupleId } = req.params;
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
@@ -124,7 +118,6 @@ app.get('/api/couples/:coupleId/events', (req, res) => {
     });
 });
 
-// Generic AI interaction
 async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const fullPrompt = `Contexto de la pareja: ${JSON.stringify(coupleData.sharedData)}\n\nTarea: ${prompt}`;
@@ -143,21 +136,16 @@ async function fetchFromApi(prompt: string, coupleData: any): Promise<any> {
     }
 }
 
-// --- MOCK API ENDPOINTS ---
-// This catch-all handles all POST requests to prevent 404s for unimplemented features.
 app.post('/api/couples/:coupleId/*', async (req: Request, res: Response) => {
     const { coupleId } = req.params;
     const route = req.path;
 
-    // FIX: Add type check for coupleId before using it as an index
     if (typeof coupleId !== 'string' || !coupleSessions[coupleId]) {
         return res.status(404).json({ message: 'Sesión no encontrada.' });
     }
     
     console.log(`Mock response for: ${route}`);
-
-    // You can add specific logic for different routes here.
-    // For now, we'll just return a generic success or a mock AI response.
+    
     if (route.includes('generate')) {
         try {
             const mockPrompt = `Genera una respuesta de ejemplo para la ruta: ${route}`;
@@ -168,15 +156,18 @@ app.post('/api/couples/:coupleId/*', async (req: Request, res: Response) => {
         }
     }
     
-    // For non-generate routes, just return a success message.
     res.json({ message: `Mock response for ${route}`, success: true });
 });
 
 
 // --- Static File Serving & Final Setup ---
-app.use(express.static(path.join(__dirname, '..'))); 
+// FIX: Serve static files (JS, CSS, images) from the 'dist' directory, which is the current directory of the compiled server.js
+app.use(express.static(__dirname)); 
+
+// FIX: For any other GET request that is not an API route, serve the main index.html file.
+// This allows React Router to handle the routing on the client side.
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // --- Error Handling ---
