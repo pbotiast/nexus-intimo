@@ -18,9 +18,16 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path Aliases - Good practice for clean imports */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
-  // Esto le dice a TypeScript que solo se preocupe por los archivos dentro de 'src'
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
