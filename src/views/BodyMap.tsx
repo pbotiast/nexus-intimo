@@ -1,207 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { BodyMark, SensationType } from '../types';
-import { BodyIcon, BodyFrontIcon, BodyBackIcon, XMarkIcon } from '../components/Icons';
-import Modal from '../components/Modal';
+// src/views/BodyMap.tsx
+
+import React, { useState } from 'react';
 import { useCouple } from '../contexts/CoupleContext';
-
-const sensationTypes: SensationType[] = [
-    'Beso Suave',
-    'Caricia Ligera',
-    'Masaje Profundo',
-    'Mordisco Juguetón',
-    'Zona Erógena Principal'
-];
-
-const sensationStyles: Record<SensationType, { color: string; label: string }> = {
-    'Beso Suave': { color: 'bg-pink-400', label: 'Beso Suave' },
-    'Caricia Ligera': { color: 'bg-blue-400', label: 'Caricia Ligera' },
-    'Masaje Profundo': { color: 'bg-purple-500', label: 'Masaje Profundo' },
-    'Mordisco Juguetón': { color: 'bg-orange-500', label: 'Mordisco Juguetón' },
-    'Zona Erógena Principal': { color: 'bg-red-500', label: 'Zona Erógena Principal' }
-};
-
+import { useModal } from '../contexts/ModalContext'; // Importar hook
+import Loader from '../components/Loader';
+import { HeartIcon, SparklesIcon } from '../components/Icons'; // Asumiendo que tienes iconos
 
 const BodyMap: React.FC = () => {
-    const { coupleData, api } = useCouple();
-    const marks = coupleData?.bodyMarks || [];
-    const [view, setView] = useState<'front' | 'back'>('front');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedMark, setSelectedMark] = useState<BodyMark | null>(null);
-    const [newCoords, setNewCoords] = useState<{ x: number; y: number } | null>(null);
-    const [sensation, setSensation] = useState<SensationType>('Beso Suave');
-    const [note, setNote] = useState('');
+    const { coupleData, saveData } = useCouple();
+    const { showModal } = useModal(); // Usar hook
+    const [selectedPart, setSelectedPart] = useState<string | null>(null);
+    const [mark, setMark] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
-    const currentMarks = marks.filter(mark => mark.bodySide === view);
-    
-    const setMarks = (newMarks: BodyMark[] | ((prev: BodyMark[]) => BodyMark[])) => {
-        const updatedMarks = typeof newMarks === 'function' ? newMarks(marks) : newMarks;
-        api.updateBodyMarks({ marks: updatedMarks });
-    }
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setSelectedMark(null);
-        setNewCoords(null);
-        setNote('');
-        setSensation('Beso Suave');
-    };
-
-    const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        
-        const tooClose = currentMarks.some(mark => {
-            const dx = (mark.x - x) * (rect.width / 100);
-            const dy = (mark.y - y) * (rect.height / 100);
-            return (dx * dx + dy * dy) < (12 * 12);
+    const handleSaveMark = async () => {
+        if (!selectedPart || !mark.trim()) return;
+        setIsSaving(true);
+        const currentBodyMap = coupleData?.bodyMap || {};
+        await saveData({
+            bodyMap: {
+                ...currentBodyMap,
+                [selectedPart]: mark.trim()
+            }
         });
-        
-        if (tooClose) return;
-
-        setNewCoords({ x, y });
-        setSelectedMark(null);
-        setIsModalOpen(true);
+        setSelectedPart(null);
+        setMark('');
+        setIsSaving(false);
     };
 
-    const handleMarkClick = (e: React.MouseEvent<HTMLDivElement>, mark: BodyMark) => {
-        e.stopPropagation();
-        setSelectedMark(mark);
-        setSensation(mark.sensation);
-        setNote(mark.note);
-        setNewCoords(null);
-        setIsModalOpen(true);
+    const handleSelectPart = (part: string) => {
+        setSelectedPart(part);
+        setMark(coupleData?.bodyMap?.[part] || ''); // Precargar la marca existente
     };
 
-    const handleSaveMark = () => {
-        if (selectedMark) { // Editing existing mark
-            setMarks(marks.map(m => m.id === selectedMark.id ? { ...m, sensation, note } : m));
-        } else if (newCoords) { // Creating new mark
-            const newMark: BodyMark = {
-                id: new Date().toISOString(),
-                x: newCoords.x,
-                y: newCoords.y,
-                bodySide: view,
-                sensation,
-                note
-            };
-            setMarks([...marks, newMark]);
-        }
-        closeModal();
-    };
-
-    const handleDeleteMark = () => {
-        if (selectedMark && window.confirm('¿Seguro que quieres borrar esta marca?')) {
-            setMarks(marks.filter(m => m.id !== selectedMark.id));
-            closeModal();
-        }
-    };
-    
     return (
-        <div className="max-w-5xl mx-auto animate-fade-in">
-            <header className="text-center mb-10">
-                <BodyIcon className="w-12 h-12 sm:w-16 sm:h-16 text-brand-accent mx-auto mb-4" />
-                <h2 className="text-4xl sm:text-5xl font-serif font-bold text-brand-light">El Mapa del Cuerpo</h2>
-                <p className="mt-2 text-lg text-brand-muted">Vuestra geografía del placer. Haced clic en el cuerpo para añadir una marca de sensación.</p>
-            </header>
-            
-            <div className="flex justify-center mb-6">
-                <div className="bg-brand-navy p-1 rounded-lg flex gap-1">
-                    <button onClick={() => setView('front')} className={`px-6 py-2 rounded-md transition-colors ${view === 'front' ? 'bg-brand-accent text-white' : 'text-brand-muted hover:bg-brand-deep-purple'}`}>Vista Frontal</button>
-                    <button onClick={() => setView('back')} className={`px-6 py-2 rounded-md transition-colors ${view === 'back' ? 'bg-brand-accent text-white' : 'text-brand-muted hover:bg-brand-deep-purple'}`}>Vista Trasera</button>
+        <div className="p-4 text-center text-white">
+            <h1 className="text-3xl font-bold mb-4 text-rose-400">Mapa Corporal</h1>
+            <p className="mb-6 text-gray-300">Explorad vuestros cuerpos. Dejad una marca, un emoji o un mensaje en cada zona para vuestra pareja.</p>
+            {isSaving && <Loader message="Guardando marca..." />}
+
+            {/* Placeholder para la representación visual del cuerpo */}
+            <div className="relative w-64 h-96 bg-gray-800 mx-auto mb-4 rounded-lg border-2 border-gray-700">
+                <div
+                    className="absolute top-16 left-1/2 -translate-x-1/2 w-12 h-12 flex items-center justify-center bg-rose-500/30 rounded-full cursor-pointer hover:bg-rose-500/50"
+                    onClick={() => handleSelectPart('corazon')}
+                >
+                    {coupleData?.bodyMap?.['corazon'] ? '❤️' : <HeartIcon />}
                 </div>
+                <div
+                    className="absolute top-32 left-8 w-10 h-10 flex items-center justify-center bg-sky-500/30 rounded-full cursor-pointer hover:bg-sky-500/50"
+                    onClick={() => handleSelectPart('hombro_izquierdo')}
+                >
+                    {coupleData?.bodyMap?.['hombro_izquierdo'] ? '✨' : <SparklesIcon />}
+                </div>
+                 {/* Añadir más partes del cuerpo aquí */}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-                <div className="md:col-span-2 bg-brand-navy p-4 rounded-xl shadow-lg border border-white/10">
-                    <div 
-                        className="relative w-full max-w-sm mx-auto cursor-crosshair"
-                        onClick={handleBodyClick}
-                    >
-                        {view === 'front' ? 
-                            <BodyFrontIcon className="w-full h-auto text-brand-muted/40 fill-current" /> : 
-                            <BodyBackIcon className="w-full h-auto text-brand-muted/40 fill-current" />
-                        }
-                        {currentMarks.map(mark => (
-                           <div
-                                key={mark.id}
-                                style={{
-                                    left: `${mark.x}%`,
-                                    top: `${mark.y}%`,
-                                }}
-                                className={`absolute transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-white/50 cursor-pointer flex items-center justify-center group ${sensationStyles[mark.sensation].color}`}
-                                onClick={(e) => handleMarkClick(e, mark)}
-                            >
-                                <div className="absolute bottom-full mb-2 w-max bg-brand-deep-purple text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                    <strong className="block">{mark.sensation}</strong>
-                                    {mark.note && <span>{mark.note}</span>}
-                                </div>
-                            </div>
-                        ))}
+            {selectedPart && (
+                <div className="mt-4 p-4 bg-gray-800 rounded-xl shadow-lg border border-gray-700">
+                    <h3 className="font-bold text-lg">Dejar una marca en: <span className="text-rose-400">{selectedPart}</span></h3>
+                    <input
+                        type="text"
+                        value={mark}
+                        onChange={(e) => setMark(e.target.value)}
+                        placeholder="Ej: 'Me encanta este lugar' o un emoji"
+                        className="w-full p-2 mt-2 bg-gray-900 border border-gray-600 rounded"
+                        disabled={isSaving}
+                    />
+                    <div className="mt-4 flex justify-end gap-2">
+                        <button onClick={() => setSelectedPart(null)} className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-500">Cancelar</button>
+                        <button onClick={handleSaveMark} className="px-4 py-2 bg-rose-600 text-white rounded hover:bg-rose-700" disabled={isSaving}>
+                            Guardar
+                        </button>
                     </div>
                 </div>
-                
-                <div className="bg-brand-navy p-6 rounded-xl shadow-lg border border-white/10">
-                    <h3 className="text-xl font-serif text-brand-light mb-4">Leyenda</h3>
-                    <div className="space-y-2">
-                        {sensationTypes.map(type => (
-                            <div key={type} className="flex items-center gap-3">
-                                <div className={`w-5 h-5 rounded-full ${sensationStyles[type].color}`}></div>
-                                <span className="text-brand-muted text-sm">{sensationStyles[type].label}</span>
-                            </div>
-                        ))}
-                    </div>
-                     <p className="text-xs text-brand-muted/70 mt-6">Pasa el ratón sobre una marca para ver los detalles. Haz clic para editar o borrar.</p>
-                </div>
-            </div>
-
-            <Modal isOpen={isModalOpen} onClose={closeModal}>
-                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-2xl font-serif font-bold text-brand-light">
-                        {selectedMark ? 'Editar Marca' : 'Añadir Marca'}
-                    </h3>
-                    <button onClick={closeModal} className="text-brand-muted hover:text-white">
-                        <XMarkIcon className="w-6 h-6" />
-                    </button>
-                </div>
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="sensation" className="block text-sm font-medium text-brand-muted mb-1">Tipo de Sensación</label>
-                        <select
-                            id="sensation"
-                            value={sensation}
-                            onChange={e => setSensation(e.target.value as SensationType)}
-                            className="w-full bg-brand-deep-purple border border-brand-muted/50 rounded-lg p-2 text-brand-light focus:ring-2 focus:ring-brand-accent"
-                        >
-                            {sensationTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="note" className="block text-sm font-medium text-brand-muted mb-1">Nota Secreta (opcional)</label>
-                        <textarea
-                            id="note"
-                            rows={3}
-                            value={note}
-                            onChange={e => setNote(e.target.value)}
-                            placeholder="Ej: 'Aquí me derrito...'"
-                            className="w-full bg-brand-deep-purple border border-brand-muted/50 rounded-lg p-2 text-brand-light focus:ring-2 focus:ring-brand-accent"
-                        />
-                    </div>
-                </div>
-                <div className="mt-6 flex justify-between items-center gap-3">
-                     <div>
-                        {selectedMark && (
-                            <button onClick={handleDeleteMark} className="bg-red-800/80 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm">
-                                Borrar
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex gap-3">
-                        <button onClick={closeModal} className="bg-brand-navy hover:bg-brand-navy/70 text-white font-bold py-2 px-4 rounded-lg transition">Cancelar</button>
-                        <button onClick={handleSaveMark} className="bg-brand-accent hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-lg transition">Guardar</button>
-                    </div>
-                </div>
-            </Modal>
+            )}
         </div>
     );
 };
