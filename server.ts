@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { z } from 'zod';
+<<<<<<< HEAD
 import { CoupleData } from './src/types'; // Importar el tipo CoupleData
 
 // Importar Firebase Admin SDK
@@ -46,11 +47,23 @@ try {
   process.exit(1); // Salir si Firebase Admin no se puede inicializar
 }
 
+=======
+import { CoupleData } from '../src/types'; // Importar el tipo CoupleData
+
+// Asegúrate de que las variables de entorno están cargadas (ej. con dotenv en un entorno real)
+// require('dotenv').config(); // Descomentar si usas dotenv
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
 
 const app = express();
+// NOTA CRÍTICA: En producción, Prisma debe conectarse a una base de datos real (PostgreSQL, MySQL, etc.),
+// no depender de un archivo local o de la mención de 'db.json' en el README, que es para desarrollo.
 const prisma = new PrismaClient();
 
+<<<<<<< HEAD
 // Verificación de la API Key de Gemini al inicio
+=======
+// Verificación de la API Key al inicio
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
 if (!process.env.GEMINI_API_KEY) {
   console.error("ERROR: La variable de entorno GEMINI_API_KEY no está definida.");
   process.exit(1); // Salir si la clave no está presente
@@ -120,6 +133,7 @@ app.get('/api/couples/:id/events', (req, res) => {
   });
 });
 
+<<<<<<< HEAD
 // --- Rutas de la API (Modificadas para usar autenticación y notificar cambios) ---
 
 // Esquemas de validación para emparejamiento
@@ -133,6 +147,36 @@ const createCoupleSessionSchema = z.object({
 app.post('/api/couples/create', authenticateFirebaseToken, async (req, res, next) => {
   try {
     const firebaseUid = (req as any).user.uid; // UID del usuario autenticado por Firebase
+=======
+// --- Middleware de Autenticación (Placeholder - CRÍTICO: ¡Implementar Autenticación Real!) ---
+// ESTO ES UN PLACEHOLDER. PARA PRODUCCIÓN, NECESITARÍAS UN SISTEMA DE AUTENTICACIÓN
+// COMO JWT, OAuth, o sesiones con un almacenamiento seguro.
+const authenticateCouple = (req: Request, res: Response, next: NextFunction) => {
+  const coupleIdFromParams = req.params.id;
+  // En un sistema real, verificarías un token JWT en el header 'Authorization'
+  // o una cookie de sesión, y obtendrías el userId asociado.
+  // Por ahora, solo confirmamos que se está intentando acceder con un coupleId.
+  if (!coupleIdFromParams) {
+    return res.status(401).json({ message: 'No autenticado: ID de pareja requerido.' });
+  }
+  // En un sistema real: validar token -> obtener userId/coupleId asociado -> adjuntar a req.user o req.couple
+  // req.coupleId = coupleIdFromParams; // Ejemplo si adjuntaras a la request
+  next();
+};
+
+// --- Rutas de la API (Modificadas para notificar cambios y con validación Zod) ---
+
+// Esquemas de validación para emparejamiento
+const createCoupleSessionSchema = z.object({
+    // En un sistema real, userId vendría del usuario autenticado, no del body
+    // Para esta demo, lo mantenemos simple.
+    userId: z.string().uuid().optional(), // optional para la creación inicial si no hay user
+});
+
+app.post('/api/couples/create', async (req, res, next) => {
+  try {
+    const { userId } = createCoupleSessionSchema.parse(req.body);
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     // Buscar si el usuario ya está en una pareja
@@ -151,7 +195,11 @@ app.post('/api/couples/create', authenticateFirebaseToken, async (req, res, next
 
     const couple = await prisma.couple.create({
       data: {
+<<<<<<< HEAD
         user1FirebaseUid: firebaseUid,
+=======
+        user1Id: userId || 'anonymous_user_' + Math.random().toString(36).substring(2, 10), // Generar si no se provee
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
         inviteCode,
         sharedData: {}, // Inicializar como objeto vacío
       },
@@ -163,6 +211,7 @@ app.post('/api/couples/create', authenticateFirebaseToken, async (req, res, next
 });
 
 const joinCoupleSessionSchema = z.object({
+<<<<<<< HEAD
     code: z.string().length(6),
 });
 
@@ -191,6 +240,16 @@ app.post('/api/couples/join', authenticateFirebaseToken, async (req, res, next) 
             user2FirebaseUid: null // Solo permitir unirse si el segundo slot está libre
           } 
         });
+=======
+    userId: z.string().uuid().optional(), // optional para la creación inicial si no hay user
+    code: z.string().length(6),
+});
+
+app.post('/api/couples/join', async (req, res, next) => {
+    try {
+        const { userId, code } = joinCoupleSessionSchema.parse(req.body);
+        const couple = await prisma.couple.findFirst({ where: { inviteCode: code, user2Id: null } });
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
 
         if (!couple) {
             return res.status(404).json({ message: 'Código de invitación no válido o ya utilizado.' });
@@ -203,7 +262,11 @@ app.post('/api/couples/join', authenticateFirebaseToken, async (req, res, next) 
 
         const updatedCouple = await prisma.couple.update({
             where: { id: couple.id },
+<<<<<<< HEAD
             data: { user2FirebaseUid: firebaseUid },
+=======
+            data: { user2Id: userId || 'anonymous_user_' + Math.random().toString(36).substring(2, 10) },
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
         });
 
         // Asegurarse de que sharedData es un objeto válido de CoupleData
@@ -216,17 +279,22 @@ app.post('/api/couples/join', authenticateFirebaseToken, async (req, res, next) 
     }
 });
 
+<<<<<<< HEAD
 // Middleware para verificar que el usuario autenticado pertenece a la pareja solicitada
 const authorizeCoupleAccess = async (req: Request, res: Response, next: NextFunction) => {
   const firebaseUid = (req as any).user.uid;
   const coupleId = req.params.id;
 
+=======
+app.get('/api/couples/:id', authenticateCouple, async (req, res, next) => {
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
   try {
     const couple = await prisma.couple.findUnique({ where: { id: coupleId } });
 
     if (!couple) {
       return res.status(404).json({ message: 'Pareja no encontrada.' });
     }
+<<<<<<< HEAD
 
     if (couple.user1FirebaseUid !== firebaseUid && couple.user2FirebaseUid !== firebaseUid) {
       return res.status(403).json({ message: 'Acceso denegado: No perteneces a esta pareja.' });
@@ -242,6 +310,8 @@ const authorizeCoupleAccess = async (req: Request, res: Response, next: NextFunc
 app.get('/api/couples/:id', authenticateFirebaseToken, authorizeCoupleAccess, async (req, res, next) => {
   try {
     const couple = (req as any).couple; // Obtenemos la pareja del middleware
+=======
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
     // Asegurarse de que sharedData es un objeto válido de CoupleData
     const coupleData: CoupleData = (couple.sharedData || {}) as CoupleData;
     res.json(coupleData); // Devolver directamente sharedData
@@ -255,7 +325,11 @@ const desiresUpdateSchema = z.object({
 });
 
 // Ejemplo: Actualizar deseos y notificar a la pareja
+<<<<<<< HEAD
 app.post('/api/couples/:id/desires', authenticateFirebaseToken, authorizeCoupleAccess, async (req, res, next) => {
+=======
+app.post('/api/couples/:id/desires', authenticateCouple, async (req, res, next) => {
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
     try {
         const { id: coupleId } = req.params;
         const { desires } = desiresUpdateSchema.parse(req.body); // Validar la entrada
@@ -284,7 +358,11 @@ const bodyMapUpdateSchema = z.object({
 });
 
 // Ejemplo: Actualizar BodyMap y notificar
+<<<<<<< HEAD
 app.post('/api/couples/:id/bodymap', authenticateFirebaseToken, authorizeCoupleAccess, async (req, res, next) => {
+=======
+app.post('/api/couples/:id/bodymap', authenticateCouple, async (req, res, next) => {
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
     try {
         const { id: coupleId } = req.params;
         const { bodyMap } = bodyMapUpdateSchema.parse(req.body); // Validar la entrada
@@ -356,7 +434,11 @@ const storySchema = z.object({
   }),
 });
 
+<<<<<<< HEAD
 app.post('/api/couples/:id/erotic-story', authenticateFirebaseToken, authorizeCoupleAccess, async (req, res, next) => {
+=======
+app.post('/api/couples/:id/erotic-story', authenticateCouple, async (req, res, next) => {
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
   try {
     const { params } = storySchema.parse(req.body);
     
@@ -385,7 +467,15 @@ app.post('/api/couples/:id/erotic-story', authenticateFirebaseToken, authorizeCo
 });
 
 
+<<<<<<< HEAD
 app.post('/api/couples/:id/personal-challenge', authenticateFirebaseToken, authorizeCoupleAccess, async (req, res, next) => {
+=======
+// Rutas de API existentes que ya usan createCoupleApiCall en api.ts (deben existir aquí en server.ts)
+// Solo añado ejemplos de cómo deberían verse las rutas que son llamadas por api.ts
+// Asegúrate de que todas las funciones exportadas en api.ts tengan una ruta correspondiente aquí.
+
+app.post('/api/couples/:id/personal-challenge', authenticateCouple, async (req, res, next) => {
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const prompt = "Genera un reto de autoexploración personal para la intimidad. Debe ser inspirador, seguro y enfocado en el crecimiento personal. Proporciona un título, una descripción y un enfoque (ej. 'Conocimiento Corporal', 'Comunicación Interna', 'Exploración Sensorial').";
@@ -399,6 +489,36 @@ app.post('/api/couples/:id/personal-challenge', authenticateFirebaseToken, autho
   }
 });
 
+<<<<<<< HEAD
+=======
+// AÑADE AQUÍ MÁS RUTAS DE API PARA LAS FUNCIONES DEFINIDAS EN `src/services/api.ts`
+// SIGUIENDO EL PATRÓN authenticateCouple Y LA VALIDACIÓN ZOD SEGÚN NECESIDAD.
+// POR EJEMPLO:
+/*
+app.post('/api/couples/:id/add-key', authenticateCouple, async (req, res, next) => {
+    try {
+        const { id: coupleId } = req.params;
+        const couple = await prisma.couple.findUnique({ where: { id: coupleId } });
+        if (!couple) return res.status(404).json({ message: "Pareja no encontrada" });
+
+        const currentSharedData: CoupleData = (couple.sharedData || {}) as CoupleData;
+        const updatedData: CoupleData = { ...currentSharedData, keys: (currentSharedData.keys || 0) + 1 };
+
+        const updatedCouple = await prisma.couple.update({
+            where: { id: coupleId },
+            data: { sharedData: updatedData as any },
+        });
+
+        sendUpdateToCouple(coupleId, updatedCouple.sharedData as CoupleData);
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+*/
+
+
+>>>>>>> e73fa3c0a1f704d35b00744056447fd45d55ae97
 // --- Middleware de Gestión de Errores Centralizado ---
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err); // Log del error para depuración
