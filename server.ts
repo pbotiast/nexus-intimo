@@ -1,183 +1,213 @@
-// /server.ts - CÓDIGO COMPLETO
-
+// server/src/server.ts
 import express, { Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { PrismaClient, User } from '@prisma/client'; // Importar User
-import short from 'short-uuid';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import bodyParser from 'body-parser';
+import { z } from 'zod';
 
-// --- Configuración Básica ---
-dotenv.config();
 const app = express();
-app.use(cors());
-app.use(express.json());
-
 const prisma = new PrismaClient();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+app.use(cors());
+app.use(bodyParser.json());
 
-// --- Configuración de Gemini ---
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-    console.error("ERROR FATAL: La API_KEY para Gemini no está definida.");
-    process.exit(1);
-}
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// --- Sistema de Sincronización en Tiempo Real (SSE) ---
 
-// --- Middleware de Autenticación Anónima ---
-// Este middleware se ejecutará en las rutas protegidas para identificar al usuario.
-const authenticateUser = async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-        return res.status(401).json({ message: 'User ID header (x-user-id) is missing.' });
-    }
-    try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) {
-            return res.status(403).json({ message: 'Invalid User ID.' });
-        }
-        res.locals.user = user; // Adjuntamos el objeto de usuario completo a la respuesta
-        next();
-    } catch (error) {
-        res.status(500).json({ message: 'Error authenticating user.' });
-    }
+// Almacena las conexiones abiertas de los clientes (res) por coupleId
+const clients: { [coupleId: string]: Response[] } = {};
+
+// Función para enviar actualizaciones a todos los clientes de una pareja
+const sendUpdateToCouple = (coupleId: string, data: any) => {
+  if (clients[coupleId]) {
+    const eventData = `data: ${JSON.stringify({ type: 'update', data })}\n\n`;
+    clients[coupleId].forEach(client => client.write(eventData));
+  }
 };
 
-// --- RUTAS DE LA API ---
+// Endpoint para que los clientes se suscriban a los eventos de su pareja
+app.get('/api/couples/:id/events', (req, res) => {
+  const { id: coupleId } = req.params;
 
-// 1. Inicialización de Usuario Anónimo
-app.post('/api/users/init', async (req, res) => {
-    const { userId } = req.body;
-    try {
-        if (userId) {
-            const existingUser = await prisma.user.findUnique({ where: { id: userId } });
-            if (existingUser) {
-                return res.json({ userId: existingUser.id, coupleId: existingUser.coupleId, isNew: false });
-            }
-        }
-        const newUser = await prisma.user.create({ data: {} });
-        res.status(201).json({ userId: newUser.id, coupleId: null, isNew: true });
-    } catch (error) {
-        res.status(500).json({ message: "Error initializing user." });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  if (!clients[coupleId]) {
+    clients[coupleId] = [];
+  }
+  clients[coupleId].push(res);
+
+  req.on('close', () => {
+    clients[coupleId] = clients[coupleId].filter(client => client !== res);
+    if (clients[coupleId].length === 0) {
+      delete clients[coupleId];
     }
+  });
 });
 
-// 2. Crear un Código de Invitación
-app.post('/api/couples/invite', authenticateUser, async (req, res) => {
-    const user: User = res.locals.user;
-    if (user.coupleId) {
-        return res.status(400).json({ message: 'Ya perteneces a una pareja.' });
-    }
 
-    try {
-        const code = short.generate().substring(0, 6).toUpperCase();
-        const invitation = await prisma.invitation.create({
-            data: { code, inviterId: user.id },
-        });
-        res.status(201).json({ invitationCode: invitation.code });
-    } catch (error) {
-        res.status(500).json({ message: "Error creating invitation." });
-    }
+// --- Rutas de la API (Modificadas para notificar cambios) ---
+
+// Esquema de validación para emparejamiento
+const pairingSchema = z.object({
+  userId: z.string().uuid(),
 });
 
-// 3. Aceptar una Invitación para formar una Pareja
-app.post('/api/couples/accept', authenticateUser, async (req, res) => {
-    const { invitationCode } = req.body;
-    const acceptingUser: User = res.locals.user;
-
-    if (acceptingUser.coupleId) {
-        return res.status(400).json({ message: 'Ya perteneces a una pareja.' });
-    }
-    if (!invitationCode || typeof invitationCode !== 'string') {
-        return res.status(400).json({ message: 'Código de invitación no válido.' });
-    }
-
-    try {
-        const invitation = await prisma.invitation.findUnique({ where: { code: invitationCode } });
-        if (!invitation) {
-            return res.status(404).json({ message: 'Código de invitación no válido o expirado.' });
-        }
-        
-        if (invitation.inviterId === acceptingUser.id) {
-            return res.status(400).json({ message: 'No puedes aceptar tu propia invitación.' });
-        }
-
-        const inviter = await prisma.user.findUnique({ where: { id: invitation.inviterId } });
-        if (!inviter || inviter.coupleId) {
-            return res.status(400).json({ message: 'El usuario que te invitó ya no es válido.' });
-        }
-
-        const newCouple = await prisma.couple.create({
-            data: {
-                sharedData: { stamps: [], wishes: [], bodyMarks: [], tandemEntry: null, keys: 0, sexDice: { actions: [], bodyParts: [] }, aiPreferences: {}, weeklyMission: null },
-                users: { connect: [{ id: inviter.id }, { id: acceptingUser.id }] }
-            }
-        });
-
-        await prisma.invitation.delete({ where: { id: invitation.id } });
-        res.json({ message: '¡Emparejamiento exitoso!', coupleId: newCouple.id });
-    } catch (error) {
-        res.status(500).json({ message: "Error accepting invitation." });
-    }
+app.post('/api/pair', async (req, res, next) => {
+  try {
+    const { userId } = pairingSchema.parse(req.body);
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const couple = await prisma.couple.create({
+      data: {
+        user1Id: userId,
+        inviteCode,
+        sharedData: {},
+      },
+    });
+    res.json(couple);
+  } catch (error) {
+    next(error);
+  }
 });
 
-// 4. Obtener los Datos Compartidos de la Pareja
-app.get('/api/couples/data', authenticateUser, async (req, res) => {
-    const user: User = res.locals.user;
-    if (!user.coupleId) {
-        return res.status(404).json({ message: 'No estás en una pareja.' });
-    }
-    
+const joinSchema = z.object({
+    userId: z.string().uuid(),
+    inviteCode: z.string().length(6),
+});
+
+app.post('/api/join', async (req, res, next) => {
     try {
-        const couple = await prisma.couple.findUnique({ where: { id: user.coupleId } });
+        const { userId, inviteCode } = joinSchema.parse(req.body);
+        const couple = await prisma.couple.findFirst({ where: { inviteCode, user2Id: null } });
+
         if (!couple) {
-            return res.status(404).json({ message: 'No se encontraron los datos de la pareja.' });
+            return res.status(404).json({ message: 'Código de invitación no válido o ya utilizado.' });
         }
-        res.json(couple.sharedData);
+
+        const updatedCouple = await prisma.couple.update({
+            where: { id: couple.id },
+            data: { user2Id: userId },
+        });
+        res.json(updatedCouple);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching couple data." });
+        next(error);
     }
 });
 
-// 5. Ejemplo de una ruta de IA protegida
-app.post('/api/couples/story', authenticateUser, async (req, res) => {
-    const user: User = res.locals.user;
-    if (!user.coupleId) {
-        return res.status(403).json({ message: 'Debes estar en una pareja para usar esta función.' });
+app.get('/api/couples/:id', async (req, res, next) => {
+  try {
+    const couple = await prisma.couple.findUnique({ where: { id: req.params.id } });
+    if (!couple) {
+      return res.status(404).json({ message: 'Pareja no encontrada' });
     }
-    const { params } = req.body;
-    const prompt = `Genera una historia erótica en español. Formato JSON: {"title": "string", "content": ["párrafo 1"]}. Parámetros: Tema: ${params.theme}, Intensidad: ${params.intensity}, Longitud: ${params.length}, Protagonistas: ${params.protagonists}.`;
-    
-    // Aquí puedes usar una función genérica si lo deseas
+    res.json(couple);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Ejemplo: Actualizar deseos y notificar a la pareja
+app.post('/api/couples/:id/desires', async (req, res, next) => {
     try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json\n|```/g, '').trim();
-        res.json(JSON.parse(cleanedText));
+        const { id: coupleId } = req.params;
+        const { desires } = req.body; // Se espera un array de deseos
+
+        const couple = await prisma.couple.findUnique({ where: { id: coupleId } });
+        if (!couple) return res.status(404).json({ message: "Pareja no encontrada" });
+
+        const currentSharedData = (couple.sharedData as any) || {};
+        const updatedData = { ...currentSharedData, desires };
+
+        const updatedCouple = await prisma.couple.update({
+            where: { id: coupleId },
+            data: { sharedData: updatedData },
+        });
+
+        // Notificar a ambos miembros de la pareja sobre el cambio
+        sendUpdateToCouple(coupleId, updatedCouple.sharedData);
+
+        res.json(updatedCouple.sharedData);
     } catch (error) {
-        res.status(500).json({ message: 'Error generando la historia.' });
+        next(error);
     }
 });
 
-// --- SERVIR ARCHIVOS ESTÁTICOS Y CIERRE ---
 
-app.use(express.static(path.join(__dirname, '../dist')));
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+// Ejemplo: Actualizar BodyMap y notificar
+app.post('/api/couples/:id/bodymap', async (req, res, next) => {
+    try {
+        const { id: coupleId } = req.params;
+        const { bodyMap } = req.body;
+
+        const couple = await prisma.couple.findUnique({ where: { id: coupleId } });
+        if (!couple) return res.status(404).json({ message: "Pareja no encontrada" });
+
+        const currentSharedData = (couple.sharedData as any) || {};
+        const updatedData = { ...currentSharedData, bodyMap };
+
+        const updatedCouple = await prisma.couple.update({
+            where: { id: coupleId },
+            data: { sharedData: updatedData },
+        });
+
+        sendUpdateToCouple(coupleId, updatedCouple.sharedData);
+        res.json(updatedCouple.sharedData);
+    } catch (error) {
+        next(error);
+    }
 });
 
-// --- Manejador de errores final ---
+// --- Rutas de la IA (Con prompts más seguros) ---
+
+const storySchema = z.object({
+  prompt: z.string().min(10).max(500),
+  mood: z.string(),
+  style: z.string(),
+});
+
+app.post('/api/generate-story', async (req, res, next) => {
+  try {
+    const { prompt, mood, style } = storySchema.parse(req.body);
+    
+    // Prompt seguro: No se concatena directamente la entrada del usuario.
+    const fullPrompt = `Crea una historia erótica para una pareja.
+    - Tono/Mood: ${mood}
+    - Estilo de escritura: ${style}
+    - Tema principal proporcionado por la pareja: "${prompt}"
+    La historia debe ser sensual, respetuosa y centrada en la conexión de la pareja.`;
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const result = await model.generateContent(fullPrompt);
+    const response = await result.response;
+    res.json({ story: response.text() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+// --- Middleware de Gestión de Errores Centralizado ---
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error("UNHANDLED ERROR:", err);
-    res.status(500).send('Something went wrong on the server!');
+  console.error(err); // Log del error para depuración
+
+  // Si el error es de validación de Zod
+  if (err instanceof z.ZodError) {
+    return res.status(400).json({
+      message: 'Datos de entrada no válidos.',
+      errors: err.errors,
+    });
+  }
+
+  // Otros errores
+  res.status(500).json({
+    message: 'Ha ocurrido un error inesperado en el servidor.',
+  });
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
