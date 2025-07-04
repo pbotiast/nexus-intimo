@@ -1,259 +1,158 @@
-// src/services/api.ts - CÓDIGO COMPLETO
+// src/services/api.ts - VERSIÓN FINAL CON AUTENTICACIÓN JWT
 
-import { StoryParams, GeneratedStory } from '../types'; // Importa los tipos que necesites
+import { 
+    // Asegúrate de que todos los tipos que usas estén definidos en este archivo.
+    // Es una buena práctica tener un archivo central de tipos.
+    StoryParams, GeneratedStory, CoupleChallenge, IcebreakerQuestion, 
+    RoleplayScenario, DateIdea, IntimateRitual, WeeklyMission, 
+    CoupleData, BodyMark, StampData, Wish 
+} from '../types'; 
 
-// --- Función Helper ---
-// Esta función centraliza la lógica de autenticación para todas las llamadas a la API.
-async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const userId = localStorage.getItem('nexusIntimoUserId');
-    if (!userId) {
-        throw new Error("User ID not found. The app needs to be re-initialized.");
-    }
+// Determina la URL base de la API para que funcione en local y en producción.
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+    ? 'http://localhost:3001' // URL para desarrollo local
+    : ''; // Ruta relativa para producción (Render, Vercel, etc.)
+
+/**
+ * Función centralizada para realizar todas las llamadas a la API.
+ * Automáticamente añade el token de autenticación a cada petición si existe.
+ */
+async function fetchFromApi<TResponse>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
     
-    const headers = {
+    // 1. Obtiene el token de autenticación desde el localStorage.
+    const token = localStorage.getItem('authToken');
+
+    // 2. Prepara los encabezados base.
+    const baseHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-user-id': userId, // ¡La cabecera de autenticación anónima!
-        ...options.headers,
     };
-    
-    // El endpoint debe ser relativo para que funcione tanto en local como en producción.
-    const response = await fetch(`/api${endpoint}`, { ...options, headers });
 
+    // 3. Si se encuentra un token, lo añade al encabezado 'Authorization'.
+    if (token) {
+        baseHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
+    // 4. Combina los encabezados base con cualquier encabezado personalizado.
+    const headers = { ...baseHeaders, ...options.headers };
+
+    // 5. Realiza la petición fetch.
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+    });
+
+    // 6. Maneja respuestas de error.
     if (!response.ok) {
-        // Intenta parsear el error del backend para dar un mensaje más claro.
-        const errorData = await response.json().catch(() => ({ message: 'An unknown server error occurred' }));
-        throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: 'Error desconocido en el servidor.' }));
+        throw new Error(errorData.message || `No se pudo completar la solicitud. Estado: ${response.status}`);
     }
     
-    // Si la respuesta no tiene contenido (p.ej. en un 204 No Content), no intentes parsearla.
+    // 7. Maneja respuestas sin cuerpo JSON (ej. un 204 No Content).
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         return response.json();
     } else {
-        return {} as T; // Devuelve un objeto vacío o maneja como prefieras.
+        return {} as TResponse;
     }
 }
 
-// --- NUEVAS FUNCIONES DE API PARA PAREJAS ---
+
+// --- FUNCIONES DE API ---
+
+// --- Autenticación y Gestión de Usuario ---
+// NOTA: Estas rutas deben coincidir con las de tu backend (server.ts)
+
+export const loginUser = (credentials: { email: string, password: string }): Promise<{ accessToken: string, user: any }> =>
+    fetchFromApi('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) });
+
+export const registerUser = (credentials: { email: string, password: string }): Promise<{ message: string }> =>
+    fetchFromApi('/api/auth/register', { method: 'POST', body: JSON.stringify(credentials) });
+
+export const getMyProfile = (): Promise<any> => // Deberías tener un tipo UserProfile
+    fetchFromApi('/api/users/me');
+
+
+// --- Sesión y Emparejamiento ---
+// Estas rutas asumen que el usuario ya está autenticado (tiene un token).
 
 export const generateInvitation = (): Promise<{ invitationCode: string }> =>
-    fetchWithAuth('/couples/invite', { method: 'POST' });
+    fetchFromApi('/api/couples/invite', { method: 'POST' });
 
-export const acceptInvitation = (code: string): Promise<{ message: string; coupleId: string }> =>
-    fetchWithAuth('/couples/accept', { 
-        method: 'POST', 
-        body: JSON.stringify({ invitationCode: code })
-    });
+export const acceptInvitation = (code: string): Promise<{ message: string; coupleData: CoupleData }> =>
+    fetchFromApi('/api/couples/accept', { method: 'POST', body: JSON.stringify({ invitationCode: code }) });
 
-export const getCoupleData = (): Promise<any> => // Tipar 'any' con la estructura de sharedData
-    fetchWithAuth('/couples/data');
+export const getCurrentCoupleData = (): Promise<CoupleData> =>
+    fetchFromApi('/api/couples/data');
 
-// --- EJEMPLO DE OTRAS FUNCIONES ---
-// Todas las demás llamadas a la API deben seguir este patrón.
+
+// --- Generadores de Contenido con IA ---
+// Todas estas funciones requieren que el usuario esté en una pareja.
 
 export const generateEroticStory = (params: StoryParams): Promise<GeneratedStory> =>
-   fetchWithAuth('/couples/story', {
+   fetchFromApi('/api/ai/story', {
        method: 'POST',
        body: JSON.stringify({ params })
    });
 
-// Puedes añadir aquí el resto de tus funciones de API (generateCouplesChallenges, etc.)
-// siguiendo exactamente el mismo formato que generateEroticStory.
-export const generateCouplesChallenges = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/challenges', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesAdventures = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/adventures', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesGames = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/games', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesActivities = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/activities', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimacy = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimacy', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateQuestions = (params: StoryParams): Promise<GeneratedStory> =>   
-    fetchWithAuth('/couples/intimate-questions', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateGames = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-games', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateActivities = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-activities', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateAdventures = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-adventures', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateChallenges = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-challenges', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateStories = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-stories', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimatePrompts = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-prompts', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateReflections = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-reflections', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateMeditations = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-meditations', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
+export const generateCouplesChallenges = (): Promise<{ challenges: CoupleChallenge[] }> =>
+   fetchFromApi('/api/ai/challenges', {
+       method: 'POST'
+   });
 
-export const generateCouplesIntimateExercises = (params: StoryParams): Promise<GeneratedStory> =>       
-    fetchWithAuth('/couples/intimate-exercises', {
+export const generateIcebreakerQuestion = (): Promise<IcebreakerQuestion> =>
+   fetchFromApi('/api/ai/icebreaker-question', {
+       method: 'POST'
+   });
+
+export const generateDateIdea = (category: string): Promise<DateIdea> =>
+    fetchFromApi('/api/ai/date-idea', {
+        method: 'POST',
+        body: JSON.stringify({ category })
+    });
+
+export const generateRoleplayScenario = (theme: string): Promise<RoleplayScenario> =>
+    fetchFromApi('/api/ai/roleplay-scenario', {
+        method: 'POST',
+        body: JSON.stringify({ theme })
+    });
+
+export const generateIntimateRitual = (energy: string): Promise<IntimateRitual> =>
+    fetchFromApi('/api/ai/intimate-ritual', {
+        method: 'POST',
+        body: JSON.stringify({ energy })
+    });
+
+export const generateWeeklyMission = (params: any): Promise<WeeklyMission> =>
+    fetchFromApi('/api/ai/weekly-mission', {
         method: 'POST',
         body: JSON.stringify({ params })
     });
-export const generateCouplesIntimateRituals = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-rituals', {
+
+
+// --- Actualización de Datos de la Pareja ---
+
+export const addStamp = (stampData: StampData): Promise<{ success: boolean }> =>
+    fetchFromApi('/api/data/stamps', {
         method: 'POST',
-        body: JSON.stringify({ params })
+        body: JSON.stringify({ stampData })
     });
-export const generateCouplesIntimateAffirmations = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-affirmations', {
+
+export const addWish = (wish: Wish): Promise<{ success: boolean }> =>
+    fetchFromApi('/api/data/wishes', {
         method: 'POST',
-        body: JSON.stringify({ params })
+        body: JSON.stringify(wish)
     });
-export const generateCouplesIntimateVisualizations = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-visualizations', {
+
+export const updateBodyMark = (bodyMark: BodyMark): Promise<{ success: boolean }> =>
+    fetchFromApi('/api/data/bodymarks', {
         method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateJournaling = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-journaling', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateMindfulness = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-mindfulness', {
-        method: 'POST',
-        body: JSON.stringify({ params })
+        body: JSON.stringify(bodyMark)
     });
-export const generateCouplesIntimateExploration = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-exploration', {
+
+export const submitJournalAnswer = (answer: { partner: 'partner1' | 'partner2', answer: string }): Promise<{ success: boolean }> =>
+    fetchFromApi('/api/data/journal/answer', {
         method: 'POST',
-        body: JSON.stringify({ params })
+        body: JSON.stringify(answer)
     });
-export const generateCouplesIntimateDiscovery = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-discovery', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateGrowth = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-growth', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateTransformation = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-transformation', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateHealing = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-healing', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateEmpowerment = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-empowerment', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimatePassion = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-passion', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateDesire = (params: StoryParams): Promise<GeneratedStory> =>  
-    fetchWithAuth('/couples/intimate-desire', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateFantasy = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-fantasy', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateRomance = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-romance', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateSeduction = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-seduction', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateAttraction = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-attraction', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateChemistry = (params: StoryParams): Promise<Generated
-Story> =>
-    fetchWithAuth('/couples/intimate-chemistry', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });         
-export const generateCouplesIntimateConnection = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-connection', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateBonding = (params: StoryParams): Promise<GeneratedStory> =>     
-    fetchWithAuth('/couples/intimate-bonding', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateUnity = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-unity', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateSynergy = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-synergy', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    }); 
-export const generateCouplesIntimateHarmony = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-harmony', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
-export const generateCouplesIntimateBalance = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-balance', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
+
     
