@@ -47,3 +47,64 @@ export const CubeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
     </svg>
 );
+export const ThumbUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14 10h4.764a2.25 2.25 0 012.236 1.95l-1.267 6.334A2.25 2.25 0 0117.234 21H5.25a2.25 2.25 0 01-2.25-2.25V10.5A2.25 2.25 0 015.25 8.25h1.5a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H5.25m9-9.75l-3-3m0 0l-3 3m3-3v12" />
+    </svg>
+);
+
+export const ThumbDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2.25 2.25 0 01-2.236-1.95l1.267-6.334A2.25 2.25 0 016.766 3h10.468a2.25 2.25 0 012.236 1.95l-1.267 6.334A2.25 2.25 0 0117.234 13H14m-4 0v5.25a.75.75 0 00.75.75h1.5a.75.75 0 00.75-.75V14m-3-9.75l3 3m0 0l3-3m-3 3V3" />
+    </svg>
+);
+
+export const LoaderIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 4a6 6 0 110 12A6 6 0 0112 6z" />
+    </svg>
+);
+
+export const HeartBrokenIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21.75l-1.5-1.5a8.25 8.25 0 01-11.25-11.25l1.5-1.5m12 12l1.5 1.5a8.25 8.25 0 0011.25-11.25l-1.5-1.5m-12-12l1.5-1.5a8.25 8.25 0 0111.25 11.25l-1.5 1.5M9 15l6-6m0 6l-6-6" />
+    </svg>
+);
+
+export const CubeIconFilled: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" {...props}>
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
+
+export const CubeIconOutline: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
+export const CubeIconSolid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" {...props}>
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
+export const CubeIconOutlineFilled: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
+export const CubeIconOutlineSolid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
+export const CubeIconOutlineFilledSolid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
+
+export const CubeIconSolidFilled: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" {...props}>
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 9v10l10 5 10-5V9L12 14l-10-5z" />
+    </svg>
+);
