@@ -1,53 +1,45 @@
-// src/services/api.ts - VERSIÓN FINAL CON AUTENTICACIÓN JWT
+// src/services/api.ts - VERSIÓN FINAL Y COMPLETA
 
 import { 
-    // Asegúrate de que todos los tipos que usas estén definidos en este archivo.
-    // Es una buena práctica tener un archivo central de tipos.
-    StoryParams, GeneratedStory, CoupleChallenge, IcebreakerQuestion, 
-    RoleplayScenario, DateIdea, IntimateRitual, WeeklyMission, 
-    CoupleData, BodyMark, StampData, Wish 
-} from '../types'; 
+    StoryParams, GeneratedStory, PersonalChallenge, CoupleChallenge, IcebreakerQuestion, 
+    RoleplayScenario, DateIdea, GameChallenge, IntimateRitual, RitualEnergy, AiPreferences, 
+    WeeklyMission, RealWorldAdventure, PassionStamp, IntimateChronicle, AdventureStyle, 
+    SoulReflection, PassionCompassScores, DailySpark, ChatMessage, CoupleData, BodyMark, 
+    TandemEntry, StampData, PreferenceCategory, Feedback, Wish 
+} from '../types';
 
-// Determina la URL base de la API para que funcione en local y en producción.
+// Determina la URL base de la API para que funcione en local y en producción
 const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
-    ? 'http://localhost:3001' // URL para desarrollo local
-    : ''; // Ruta relativa para producción (Render, Vercel, etc.)
+    ? 'http://localhost:3001' 
+    : '';
 
 /**
  * Función centralizada para realizar todas las llamadas a la API.
  * Automáticamente añade el token de autenticación a cada petición si existe.
  */
 async function fetchFromApi<TResponse>(endpoint: string, options: RequestInit = {}): Promise<TResponse> {
-    
-    // 1. Obtiene el token de autenticación desde el localStorage.
     const token = localStorage.getItem('authToken');
 
-    // 2. Prepara los encabezados base.
     const baseHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
     };
 
-    // 3. Si se encuentra un token, lo añade al encabezado 'Authorization'.
     if (token) {
         baseHeaders['Authorization'] = `Bearer ${token}`;
     }
 
-    // 4. Combina los encabezados base con cualquier encabezado personalizado.
     const headers = { ...baseHeaders, ...options.headers };
 
-    // 5. Realiza la petición fetch.
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
     });
 
-    // 6. Maneja respuestas de error.
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Error desconocido en el servidor.' }));
         throw new Error(errorData.message || `No se pudo completar la solicitud. Estado: ${response.status}`);
     }
     
-    // 7. Maneja respuestas sin cuerpo JSON (ej. un 204 No Content).
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         return response.json();
@@ -59,100 +51,101 @@ async function fetchFromApi<TResponse>(endpoint: string, options: RequestInit = 
 
 // --- FUNCIONES DE API ---
 
-// --- Autenticación y Gestión de Usuario ---
-// NOTA: Estas rutas deben coincidir con las de tu backend (server.ts)
+// Sesión y Emparejamiento
+export const createCoupleSession = () => fetchFromApi<{ coupleId: string; pairingCode: string }>('/api/couples/create', { method: 'POST' });
+export const joinCoupleSession = (code: string) => fetchFromApi<{ coupleId: string; coupleData: CoupleData }>('/api/couples/join', { method: 'POST', body: JSON.stringify({ code }) });
+export const getCoupleData = (coupleId: string) => fetchFromApi<CoupleData>(`/api/couples/${coupleId}`);
 
-export const loginUser = (credentials: { email: string, password: string }): Promise<{ accessToken: string, user: any }> =>
-    fetchFromApi('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) });
+// "Fábrica" de funciones para llamadas a la API que requieren un coupleId.
+const createCoupleApiCall = <TBody, TResponse>(endpoint: string, method: 'POST' | 'PUT' | 'DELETE' = 'POST') => 
+    (coupleId: string, body?: TBody): Promise<TResponse> => {
+        const options: RequestInit = { method };
+        if (body) {
+            options.body = JSON.stringify(body);
+        }
+        return fetchFromApi<TResponse>(`/api/couples/${coupleId}/${endpoint}`, options);
+    };
 
-export const registerUser = (credentials: { email: string, password: string }): Promise<{ message: string }> =>
-    fetchFromApi('/api/auth/register', { method: 'POST', body: JSON.stringify(credentials) });
+// --- Generadores de Contenido ---
+export const generateEroticStory = createCoupleApiCall<{ params: StoryParams }, GeneratedStory>('erotic-story');
+export const generatePersonalChallenge = createCoupleApiCall<{}, PersonalChallenge>('personal-challenge');
+export const generateCouplesChallenges = createCoupleApiCall<{}, { challenges: CoupleChallenge[] }>('couples-challenges');
+export const generateIcebreakerQuestion = createCoupleApiCall<{}, IcebreakerQuestion>('icebreaker-question');
+export const generateRoleplayScenario = createCoupleApiCall<{ theme: string }, RoleplayScenario>('roleplay-scenario');
+export const generateDateIdea = createCoupleApiCall<{ category: string }, DateIdea>('date-idea');
+export const generateGameChallenge = createCoupleApiCall<{ type: GameChallenge['type'] }, GameChallenge>('game-challenge');
+export const generateIntimateRitual = createCoupleApiCall<{ energy: RitualEnergy }, IntimateRitual>('intimate-ritual');
+export const generateWeeklyMission = createCoupleApiCall<{}, { success: boolean }>('weekly-mission');
+export const generateRealWorldAdventure = createCoupleApiCall<{ coords: { latitude: number, longitude: number }, style: AdventureStyle }, RealWorldAdventure>('real-world-adventure');
+export const generateIntimateChronicle = createCoupleApiCall<{}, IntimateChronicle>('intimate-chronicle');
+export const generateSoulMirrorReflection = createCoupleApiCall<{ scores: PassionCompassScores }, SoulReflection>('soul-mirror-reflection');
+export const generateDailySpark = createCoupleApiCall<{ scores: PassionCompassScores }, DailySpark>('daily-spark');
+export const continueNexoChat = createCoupleApiCall<{ messages: ChatMessage[] }, { text: string }>('nexo-chat');
 
-export const getMyProfile = (): Promise<any> => // Deberías tener un tipo UserProfile
-    fetchFromApi('/api/users/me');
+// --- Modificadores de Estado (PUT, POST, DELETE) ---
+export const claimMissionReward = createCoupleApiCall<{}, { success: boolean }>('claim-mission-reward');
+export const addStamp = createCoupleApiCall<{ stampData: StampData }, { success: boolean }>('stamps');
+export const deleteStamp = (coupleId: string, stampId: string) => fetchFromApi(`/api/couples/${coupleId}/stamps/${stampId}`, { method: 'DELETE' });
+export const addWish = createCoupleApiCall<{ text: string }, { success: boolean }>('wishes');
+export const revealWish = createCoupleApiCall<{}, Wish | null>('wishes/reveal');
+export const updateBodyMarks = createCoupleApiCall<{ marks: BodyMark[] }, { success: boolean }>('body-marks', 'PUT');
+export const generateTandemJournalPrompt = createCoupleApiCall<{}, { success: boolean }>('tandem-journal/prompt');
+export const saveTandemAnswer = createCoupleApiCall<{ partner: 'partner1' | 'partner2', answer: string }, { success: boolean }>('tandem-journal/answer');
+export const recordFeedback = createCoupleApiCall<{ category: PreferenceCategory, value: string, feedback: Feedback }, { success: boolean }>('feedback');
+export const addKey = createCoupleApiCall<{}, { success: boolean }>('add-key');
+export const useKey = createCoupleApiCall<{}, { success: boolean }>('use-key');
+export const updateAiPreferences = createCoupleApiCall<{ preferences: AiPreferences }, { success: boolean }>('ai-preferences', 'PUT');
+export const updateWeeklyMission = createCoupleApiCall<{ mission: WeeklyMission }, { success: boolean }>('weekly-mission', 'PUT');
+export const updateRealWorldAdventure = createCoupleApiCall<{ adventure: RealWorldAdventure }, { success: boolean }>('real-world-adventure', 'PUT');
+export const updatePassionCompassScores = createCoupleApiCall<{ scores: PassionCompassScores }, { success: boolean }>('passion-compass/scores', 'PUT');
+export const updatePassionCompassDailySpark = createCoupleApiCall<{ dailySpark: DailySpark }, { success: boolean }>('passion-compass/daily-spark', 'PUT');
+export const updateChatMessages = createCoupleApiCall<{ messages: ChatMessage[] }, { success: boolean }>('chat-messages', 'PUT');
+export const addIntimateChronicle = createCoupleApiCall<{ chronicle: IntimateChronicle }, { success: boolean }>('intimate-chronicles');
+export const deleteIntimateChronicle = (coupleId: string, chronicleId: string) => fetchFromApi(`/api/couples/${coupleId}/intimate-chronicles/${chronicleId}`, { method: 'DELETE' });
+export const addPassionStamp = createCoupleApiCall<{ stamp: PassionStamp }, { success: boolean }>('passion-stamps');
+export const deletePassionStamp = (coupleId: string, stampId: string) => fetchFromApi(`/api/couples/${coupleId}/passion-stamps/${stampId}`, { method: 'DELETE' });
+export const addTandemEntry = createCoupleApiCall<{ entry: TandemEntry }, { success: boolean }>('tandem-entries');
+export const deleteTandemEntry = (coupleId: string, entryId: string) => fetchFromApi(`/api/couples/${coupleId}/tandem-entries/${entryId}`, { method: 'DELETE' });
 
+// --- Obtener Listas de Datos (GET) ---
+const createCoupleGetApiCall = <TResponse>(endpoint: string) =>
+    (coupleId: string, type?: string): Promise<TResponse> => {
+        const url = type ? `/api/couples/${coupleId}/${endpoint}/${type}` : `/api/couples/${coupleId}/${endpoint}`;
+        return fetchFromApi<TResponse>(url);
+    };
 
-// --- Sesión y Emparejamiento ---
-// Estas rutas asumen que el usuario ya está autenticado (tiene un token).
+export const getCoupleChallenges = createCoupleGetApiCall<CoupleChallenge[]>('challenges');
+export const getCoupleIcebreakerQuestions = createCoupleGetApiCall<IcebreakerQuestion[]>('icebreaker-questions');
+export const getCoupleRoleplayScenarios = createCoupleGetApiCall<RoleplayScenario[]>('roleplay-scenarios');
+export const getCoupleDateIdeas = createCoupleGetApiCall<DateIdea[]>('date-ideas');
+export const getCoupleGameChallenges = createCoupleGetApiCall<GameChallenge[]>('game-challenges');
+export const getCoupleIntimateRituals = createCoupleGetApiCall<IntimateRitual[]>('intimate-rituals');
+export const getCoupleWeeklyMissions = createCoupleGetApiCall<WeeklyMission[]>('weekly-missions');
+export const getCoupleRealWorldAdventures = createCoupleGetApiCall<RealWorldAdventure[]>('real-world-adventures');
+export const getCoupleIntimateChronicles = createCoupleGetApiCall<IntimateChronicle[]>('intimate-chronicles');
+export const getCouplePassionStamps = createCoupleGetApiCall<PassionStamp[]>('passion-stamps');
+export const getCoupleTandemEntries = createCoupleGetApiCall<TandemEntry[]>('tandem-entries');
+export const getCoupleFeedback = createCoupleGetApiCall<Feedback[]>('feedback');
+export const getCoupleBodyMarks = createCoupleGetApiCall<BodyMark[]>('body-marks');
+export const getCoupleStamps = createCoupleGetApiCall<StampData[]>('stamps');
+export const getCoupleWishes = createCoupleGetApiCall<Wish[]>('wishes');
+export const getCoupleAiPreferences = createCoupleGetApiCall<AiPreferences>('ai-preferences');
+export const getCoupleWeeklyMission = createCoupleGetApiCall<WeeklyMission>('weekly-mission');
+export const getCoupleRealWorldAdventure = createCoupleGetApiCall<RealWorldAdventure>('real-world-adventure');
+export const getCouplePassionCompassScores = createCoupleGetApiCall<PassionCompassScores>('passion-compass/scores');
+export const getCoupleDailySpark = createCoupleGetApiCall<DailySpark>('passion-compass/daily-spark');
+export const getCoupleChatMessages = createCoupleGetApiCall<ChatMessage[]>('chat-messages');
 
-export const generateInvitation = (): Promise<{ invitationCode: string }> =>
-    fetchFromApi('/api/couples/invite', { method: 'POST' });
+// --- Obtener Datos Específicos por ID (GET) ---
+export const getCoupleIntimateChronicle = (coupleId: string, chronicleId: string) => fetchFromApi<IntimateChronicle>(`/api/couples/${coupleId}/intimate-chronicles/${chronicleId}`);
+export const getCouplePassionStamp = (coupleId: string, stampId: string) => fetchFromApi<PassionStamp>(`/api/couples/${coupleId}/passion-stamps/${stampId}`);
+export const getCoupleTandemEntry = (coupleId: string, entryId: string) => fetchFromApi<TandemEntry>(`/api/couples/${coupleId}/tandem-entries/${entryId}`);
 
-export const acceptInvitation = (code: string): Promise<{ message: string; coupleData: CoupleData }> =>
-    fetchFromApi('/api/couples/accept', { method: 'POST', body: JSON.stringify({ invitationCode: code }) });
-
-export const getCurrentCoupleData = (): Promise<CoupleData> =>
-    fetchFromApi('/api/couples/data');
-
-
-// --- Generadores de Contenido con IA ---
-// Todas estas funciones requieren que el usuario esté en una pareja.
-
-export const generateEroticStory = (params: StoryParams): Promise<GeneratedStory> =>
-   fetchFromApi('/api/ai/story', {
-       method: 'POST',
-       body: JSON.stringify({ params })
-   });
-
-export const generateCouplesChallenges = (): Promise<{ challenges: CoupleChallenge[] }> =>
-   fetchFromApi('/api/ai/challenges', {
-       method: 'POST'
-   });
-
-export const generateIcebreakerQuestion = (): Promise<IcebreakerQuestion> =>
-   fetchFromApi('/api/ai/icebreaker-question', {
-       method: 'POST'
-   });
-
-export const generateDateIdea = (category: string): Promise<DateIdea> =>
-    fetchFromApi('/api/ai/date-idea', {
-        method: 'POST',
-        body: JSON.stringify({ category })
-    });
-
-export const generateRoleplayScenario = (theme: string): Promise<RoleplayScenario> =>
-    fetchFromApi('/api/ai/roleplay-scenario', {
-        method: 'POST',
-        body: JSON.stringify({ theme })
-    });
-
-export const generateIntimateRitual = (energy: string): Promise<IntimateRitual> =>
-    fetchFromApi('/api/ai/intimate-ritual', {
-        method: 'POST',
-        body: JSON.stringify({ energy })
-    });
-
-export const generateWeeklyMission = (params: any): Promise<WeeklyMission> =>
-    fetchFromApi('/api/ai/weekly-mission', {
+// --- Función que Rompía el Build (AHORA CORREGIDA) ---
+export const generateCouplesIntimateChemistry = (coupleId: string, params: StoryParams): Promise<GeneratedStory> =>
+    fetchFromApi(`/api/couples/${coupleId}/intimate-chemistry`, {
         method: 'POST',
         body: JSON.stringify({ params })
     });
 
-
-// --- Actualización de Datos de la Pareja ---
-
-export const addStamp = (stampData: StampData): Promise<{ success: boolean }> =>
-    fetchFromApi('/api/data/stamps', {
-        method: 'POST',
-        body: JSON.stringify({ stampData })
-    });
-
-export const addWish = (wish: Wish): Promise<{ success: boolean }> =>
-    fetchFromApi('/api/data/wishes', {
-        method: 'POST',
-        body: JSON.stringify(wish)
-    });
-
-export const updateBodyMark = (bodyMark: BodyMark): Promise<{ success: boolean }> =>
-    fetchFromApi('/api/data/bodymarks', {
-        method: 'POST',
-        body: JSON.stringify(bodyMark)
-    });
-
-export const submitJournalAnswer = (answer: { partner: 'partner1' | 'partner2', answer: string }): Promise<{ success: boolean }> =>
-    fetchFromApi('/api/data/journal/answer', {
-        method: 'POST',
-        body: JSON.stringify(answer)
-    });
-
-    
+// Puedes añadir más funciones aquí si lo necesitas, siguiendo los patrones anteriores.
