@@ -1,3 +1,4 @@
+// src/views/AudioGuides.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { audioGuides } from '../../data/audioGuides';
@@ -15,11 +16,19 @@ const getYoutubeEmbedUrl = (url: string): string | null => {
     let videoId;
     try {
         const urlObj = new URL(url);
+        // Maneja formatos como https://www.youtube.com/watch?v=VIDEO_ID
         videoId = urlObj.searchParams.get('v');
+        if (!videoId) {
+            // Maneja formatos como https://youtu.be/VIDEO_ID
+            const pathParts = urlObj.pathname.split('/');
+            videoId = pathParts[pathParts.length - 1];
+        }
     } catch(e) {
+        // Fallback para URLs que no son válidas URL objetos, ej. solo el ID o un formato muy simple
         const parts = url.split('/');
         videoId = parts.pop();
     }
+    // CORRECCIÓN: Usar el formato de embed de YouTube correcto
     return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
 }
 
@@ -55,7 +64,7 @@ const AudioGuides: React.FC = () => {
                  audioRef.current.play().catch(e => console.error("Error playing audio:", e));
             }
         }
-    }, [activeGuide]);
+    }, [activeGuide, isPlaying]); // Añadido isPlaying a dependencias
     
     const handlePlayPause = () => {
         if (!audioRef.current || activeGuide?.sourceType !== 'audio') return;
