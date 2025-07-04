@@ -1,0 +1,20 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // O tu base de datos preferida, ej. "mysql", "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Couple {
+  id               String    @id @default(uuid())
+  user1FirebaseUid String    @unique // UID del primer usuario de Firebase
+  user2FirebaseUid String?   @unique // UID del segundo usuario de Firebase (puede ser null)
+  inviteCode       String    @unique // Código para que el segundo usuario se una
+  sharedData       Json      // Datos compartidos entre la pareja (desires, bodyMap, etc.)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}

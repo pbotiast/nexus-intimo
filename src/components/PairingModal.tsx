@@ -1,90 +1,94 @@
-import React, { useState } from 'react';
-import { useCouple } from '../contexts/CoupleContext';
-import { SparklesIcon } from './Icons';
-import Loader from './Loader';
+// src/services/api.ts
+import { CoupleData } from '../types';
 
-interface PairingModalProps {
-    error: string | null;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
+// Función auxiliar para manejar respuestas de la API
+async function handleResponse(response: Response) {
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Error en la solicitud a la API');
+  }
+  return response.json();
 }
 
-const PairingModal: React.FC<PairingModalProps> = ({ error: initialError }) => {
-    const { createCoupleSession, joinCoupleSession, pairingCode, isLoading } = useCouple();
-    const [joinCode, setJoinCode] = useState('');
-    const [view, setView] = useState<'start' | 'create' | 'join'>('start');
-    const [joinError, setJoinError] = useState<string | null>(null);
+// Función auxiliar para incluir el token de autorización
+async function fetchWithAuth(url: string, options: RequestInit = {}, idToken: string) {
+  const headers = {
+    ...options.headers,
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${idToken}`, // Añadir el token de autorización
+  };
+  return fetch(url, { ...options, headers });
+}
 
-    const handleJoin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setJoinError(null);
-        try {
-            await joinCoupleSession(joinCode);
-        } catch (err: any) {
-            setJoinError(err.message || "Error al unirse a la sesión.");
-        }
-    };
+// API para crear una nueva pareja
+export async function createCoupleApiCall(idToken: string): Promise<{ coupleId: string; pairingCode: string }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/create`, {
+    method: 'POST',
+    body: JSON.stringify({}), // No necesitamos userId en el body, viene del token
+  }, idToken);
+  return handleResponse(response);
+}
 
-    const renderStartView = () => (
-        <>
-            <h2 className="text-2xl sm:text-3xl font-serif text-brand-light mb-4">Conecta con tu Pareja</h2>
-            <p className="text-brand-muted mb-8">Para empezar, un miembro de la pareja debe crear una sesión y compartir el código con el otro.</p>
-            <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={() => { createCoupleSession(); setView('create'); }} className="flex-1 bg-brand-accent text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">
-                    Crear Nueva Sesión
-                </button>
-                <button onClick={() => setView('join')} className="flex-1 bg-brand-navy border border-brand-accent text-brand-accent font-bold py-3 px-6 rounded-lg transition-colors hover:bg-brand-accent/10">
-                    Unirse con un Código
-                </button>
-            </div>
-        </>
-    );
+// API para unirse a una pareja existente
+export async function joinCoupleApiCall(code: string, idToken: string): Promise<{ coupleId: string; coupleData: CoupleData }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/join`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }, idToken);
+  return handleResponse(response);
+}
 
-    const renderCreateView = () => (
-        <>
-            <h2 className="text-2xl font-serif text-brand-light mb-4">Comparte este Código</h2>
-            <p className="text-brand-muted mb-6">Tu pareja debe introducir este código para unirse a vuestra sesión compartida. El código expira en 5 minutos.</p>
-            {isLoading && !pairingCode && <Loader text="Generando código..." />}
-            {pairingCode && (
-                <div className="bg-brand-deep-purple p-6 rounded-lg border border-dashed border-brand-accent">
-                    <p className="text-5xl font-mono font-bold text-white tracking-widest">{pairingCode}</p>
-                </div>
-            )}
-            <p className="text-brand-muted mt-6 text-sm">Esperando a que tu pareja se conecte...</p>
-            <button onClick={() => setView('start')} className="text-brand-muted hover:text-white mt-4 text-xs">Volver</button>
-        </>
-    );
+// API para obtener los datos de la pareja
+export async function getCoupleDataApiCall(coupleId: string, idToken: string): Promise<CoupleData> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/${coupleId}`, {
+    method: 'GET',
+  }, idToken);
+  return handleResponse(response);
+}
 
-    const renderJoinView = () => (
-        <>
-            <h2 className="text-2xl font-serif text-brand-light mb-4">Unirse a una Sesión</h2>
-            <p className="text-brand-muted mb-6">Introduce el código que tu pareja te ha compartido.</p>
-            <form onSubmit={handleJoin} className="flex flex-col gap-4">
-                <input
-                    type="text"
-                    value={joinCode}
-                    onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="ABCDEF"
-                    maxLength={6}
-                    className="w-full bg-brand-deep-purple border border-brand-muted/50 rounded-lg p-4 text-center text-3xl font-mono tracking-widest text-white focus:ring-2 focus:ring-brand-accent"
-                />
-                <button type="submit" disabled={isLoading || joinCode.length < 6} className="bg-brand-accent text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:bg-gray-600">
-                    {isLoading ? 'Conectando...' : 'Unirse'}
-                </button>
-            </form>
-            {(joinError || initialError) && <p className="text-red-400 mt-4">{joinError || initialError}</p>}
-            <button onClick={() => setView('start')} className="text-brand-muted hover:text-white mt-4 text-xs">Volver</button>
-        </>
-    );
-    
-    return (
-         <div className="fixed inset-0 bg-brand-deep-purple z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md text-center bg-brand-navy p-8 rounded-2xl shadow-2xl border border-brand-accent/20">
-                <SparklesIcon className="w-12 h-12 text-brand-accent mx-auto mb-4" />
-                {view === 'start' && renderStartView()}
-                {view === 'create' && renderCreateView()}
-                {view === 'join' && renderJoinView()}
-            </div>
-         </div>
-    );
-};
+// API para actualizar los deseos de la pareja
+export async function updateDesiresApiCall(coupleId: string, desires: string[], idToken: string): Promise<CoupleData> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/${coupleId}/desires`, {
+    method: 'POST',
+    body: JSON.stringify({ desires }),
+  }, idToken);
+  return handleResponse(response);
+}
 
-export default PairingModal;
+// API para actualizar el body map de la pareja
+export async function updateBodyMapApiCall(coupleId: string, bodyMap: { [key: string]: string }, idToken: string): Promise<CoupleData> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/${coupleId}/bodymap`, {
+    method: 'POST',
+    body: JSON.stringify({ bodyMap }),
+  }, idToken);
+  return handleResponse(response);
+}
+
+// API para generar una historia erótica
+export async function generateEroticStoryApiCall(coupleId: string, params: { theme: string; intensity: string; length: string; protagonists: string }, idToken: string): Promise<{ title: string; content: string[] }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/${coupleId}/erotic-story`, {
+    method: 'POST',
+    body: JSON.stringify({ params }),
+  }, idToken);
+  return handleResponse(response);
+}
+
+// API para generar un reto personal
+export async function generatePersonalChallengeApiCall(coupleId: string, idToken: string): Promise<any> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/${coupleId}/personal-challenge`, {
+    method: 'POST',
+  }, idToken);
+  return handleResponse(response);
+}
+
+// API para abandonar una pareja
+export async function leaveCoupleApiCall(coupleId: string, idToken: string): Promise<{ message: string }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/couples/${coupleId}/leave`, {
+    method: 'POST',
+  }, idToken);
+  return handleResponse(response);
+}
+
+// Puedes añadir más funciones API aquí para otras rutas del backend
