@@ -1,133 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { DocumentDuplicateIcon, SparklesIcon } from '../components/Icons';
-import Loader from '../components/Loader';
-import FeedbackWidget from '../components/FeedbackWidget';
-import { useAiPreferences } from '../hooks/useAiPreferences';
+// src/views/TandemJournal.tsx
+
+import React, { useState } from 'react';
 import { useCouple } from '../contexts/CoupleContext';
+import { useModal } from '../contexts/ModalContext'; // Importar hook
+import Loader from '../components/Loader';
+
+const journalPrompts = [
+    "¿Qué es lo que más admiras de mí hoy?",
+    "Describe un recuerdo feliz que tengamos juntos.",
+    "¿Cuál es un sueño que te gustaría que cumpliéramos juntos?",
+    "¿Cómo puedo hacerte sentir más amado/a esta semana?",
+    "¿Que te gustaria que hiciesemos hoy antes de que acabe el día?",
+    "¿Qué es lo que más te gusta de nuestra relación?",
+    "¿Cómo te sientes acerca de nuestro futuro juntos?",
+    "¿Qué es lo que más te emociona de nuestra relación?",
+    "¿Qué es lo que más te gusta de pasar tiempo conmigo?",
+    "¿Coimo podemos mejorar nuestra comunicación?",
+    "¿Qué es lo que más te gusta de nuestra intimidad?",
+    "¿Qué es lo que más te gusta de nuestra conexión emocional?",
+    "¿Qué es lo que más te gusta de nuestra conexión física?",
+    "¿Qué te gustaria probar nuevo en el sexo conmigo?",
+
+]
+
+
 
 const TandemJournal: React.FC = () => {
-    const { coupleData, api } = useCouple();
-    const entry = coupleData?.tandemEntry;
+    const { coupleData, saveData } = useCouple();
+    const { showModal } = useModal(); // Usar hook
+    const [entry, setEntry] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
-    const [answer1Input, setAnswer1Input] = useState('');
-    const [answer2Input, setAnswer2Input] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const { recordFeedback } = useAiPreferences();
+    const handleSaveEntry = async () => {
+        if (!entry.trim()) return;
 
-    useEffect(() => {
-        if (!entry) {
-            handleGenerateNewPrompt();
-        }
-    }, [entry]);
-
-    const handleGenerateNewPrompt = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            await api.generateTandemJournalPrompt();
-            setAnswer1Input('');
-            setAnswer2Input('');
-        } catch (err: any) {
-            setError(err.message || 'No se pudo generar una nueva pregunta.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleSaveAnswer = async (partner: 'partner1' | 'partner2', answer: string) => {
-        if (!entry || !answer.trim()) return;
-        
-        try {
-            await api.saveTandemAnswer({ partner, answer: answer.trim() });
-            if (partner === 'partner1') setAnswer1Input('');
-            if (partner === 'partner2') setAnswer2Input('');
-        } catch (e: any) {
-            setError(e.message || 'No se pudo guardar la respuesta');
-        }
+        showModal('confirm', {
+            title: 'Guardar Entrada',
+            message: '¿Estás seguro de que quieres añadir esta entrada a vuestro diario compartido?',
+            onConfirm: async () => {
+                setIsSaving(true);
+                const currentJournal = (coupleData as any)?.journal || [];
+                const newEntry = { text: entry, date: new Date().toISOString(), author: 'user' }; // 'user' es un placeholder
+                await saveData({ journal: [...currentJournal, newEntry] });
+                setEntry('');
+                setIsSaving(false);
+            },
+        });
     };
 
-    const bothAnswered = entry?.answer1 && entry?.answer2;
-
-    const renderPartnerCard = (
-        partner: 'partner1' | 'partner2',
-        title: string,
-        answer: string | null,
-        inputValue: string,
-        setInputValue: (val: string) => void,
-        otherAnswer: string | null
-    ) => (
-        <div className="bg-brand-navy p-6 rounded-xl shadow-lg border border-white/10 flex flex-col">
-            <h3 className="text-xl font-serif text-brand-light mb-4">{title}</h3>
-            {bothAnswered ? (
-                <div className="bg-brand-deep-purple p-4 rounded-lg flex-grow">
-                    <p className="text-brand-light/90 whitespace-pre-wrap">{answer}</p>
-                </div>
-            ) : answer ? (
-                 <div className="bg-brand-deep-purple p-4 rounded-lg flex-grow flex items-center justify-center text-center">
-                    <p className="text-brand-muted">Esperando la respuesta de tu pareja para revelar los secretos...</p>
-                </div>
-            ) : (
-                <div className="flex flex-col flex-grow">
-                    <textarea
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Escribe tu respuesta aquí..."
-                        rows={5}
-                        className="w-full bg-brand-deep-purple border border-brand-muted/50 rounded-lg p-3 text-brand-light focus:ring-2 focus:ring-brand-accent transition flex-grow"
-                        disabled={!!otherAnswer && !bothAnswered}
-                    />
-                    <button
-                        onClick={() => handleSaveAnswer(partner, inputValue)}
-                        className="mt-4 w-full bg-brand-accent text-white font-bold py-2 px-6 rounded-lg hover:bg-pink-600 transition duration-300 disabled:bg-gray-600"
-                        disabled={!inputValue.trim()}
-                    >
-                        Guardar mi respuesta
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-
+    const getRandomPrompt = () => {
+        const prompt = journalPrompts[Math.floor(Math.random() * journalPrompts.length)];
+        setEntry(prompt + '\n\n');
+    };
 
     return (
-        <div className="max-w-5xl mx-auto animate-fade-in text-center">
-            <header className="mb-10">
-                <DocumentDuplicateIcon className="w-12 h-12 sm:w-16 sm:h-16 text-brand-accent mx-auto mb-4" />
-                <h2 className="text-4xl sm:text-5xl font-serif font-bold text-brand-light">Diario Tándem</h2>
-                <p className="mt-2 text-lg text-brand-muted max-w-3xl mx-auto">Responded a la misma pregunta en secreto. Las respuestas solo se revelarán cuando ambos hayáis terminado, fomentando la empatía y el descubrimiento.</p>
-            </header>
+        <div className="p-4 text-white">
+            <h1 className="text-3xl font-bold mb-4 text-cyan-400">Diario Tándem</h1>
+            <p className="mb-6 text-gray-300">Un espacio para vuestros pensamientos, sueños y reflexiones compartidas.</p>
+            {isSaving && <Loader message="Guardando en vuestro diario..." />}
 
-            {isLoading && !entry && <Loader text="Generando una pregunta para conectaros..." />}
-            {error && <div className="my-4 bg-red-900/50 border border-red-700 text-red-200 p-4 rounded-lg">{error}</div>}
+            <div className="mb-4">
+                 <textarea
+                    value={entry}
+                    onChange={(e) => setEntry(e.target.value)}
+                    placeholder="Escribe aquí vuestros pensamientos..."
+                    className="w-full p-3 bg-gray-800 border border-gray-700 rounded-md h-40"
+                    disabled={isSaving}
+                />
+            </div>
+            <div className="flex gap-4">
+                 <button onClick={handleSaveEntry} className="px-6 py-2 bg-cyan-600 rounded hover:bg-cyan-700" disabled={isSaving}>Guardar Entrada</button>
+                 <button onClick={getRandomPrompt} className="px-6 py-2 bg-gray-600 rounded hover:bg-gray-500">Sugerencia</button>
+            </div>
 
-            {entry && (
-                 <div className="bg-gradient-to-br from-brand-accent/10 via-brand-navy to-brand-navy p-6 rounded-xl shadow-lg border border-brand-accent/30 mb-8">
-                    <h3 className="text-2xl sm:text-3xl font-serif text-brand-accent">La Pregunta del Día:</h3>
-                    <p className="text-xl text-brand-light mt-2">"{entry.prompt}"</p>
-                     <FeedbackWidget 
-                        onFeedback={(feedback) => recordFeedback('tandem_prompt', 'prompt', feedback)}
-                        contentId={entry.id}
-                     />
+            <div className="mt-8">
+                <h2 className="text-2xl font-bold mb-4">Vuestras Entradas</h2>
+                <div className="space-y-4">
+                    {((coupleData as any)?.journal || []).map((item: any, index: number) => (
+                        <div key={index} className="p-4 bg-gray-800 rounded-lg">
+                            <p className="whitespace-pre-wrap">{item.text}</p>
+                            <p className="text-xs text-gray-400 mt-2">{new Date(item.date).toLocaleString()}</p>
+                        </div>
+                    ))}
                 </div>
-            )}
-
-            {entry && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {renderPartnerCard('partner1', 'Tu Respuesta', entry.answer1, answer1Input, setAnswer1Input, entry.answer2)}
-                    {renderPartnerCard('partner2', 'Respuesta de tu Pareja', entry.answer2, answer2Input, setAnswer2Input, entry.answer1)}
-                </div>
-            )}
-
-            <div className="mt-10">
-                <button
-                    onClick={handleGenerateNewPrompt}
-                    disabled={isLoading}
-                    className="bg-brand-navy text-brand-light font-bold py-3 px-8 rounded-lg hover:bg-brand-deep-purple border border-brand-muted/50 transition duration-300 disabled:bg-gray-600 flex items-center gap-2 mx-auto"
-                >
-                    <SparklesIcon className="w-5 h-5" />
-                    {isLoading ? 'Generando...' : 'Generar Nueva Pregunta'}
-                </button>
             </div>
         </div>
     );
