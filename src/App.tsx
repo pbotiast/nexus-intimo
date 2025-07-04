@@ -1,65 +1,70 @@
 // src/App.tsx
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { CoupleProvider } from './contexts/CoupleContext';
+import { KeysProvider } from './contexts/KeysContext';
+import { EmpathyEngineProvider } from './contexts/EmpathyEngineContext';
+import { PassportProvider } from './contexts/PassportContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { ModalProvider } from './contexts/ModalContext'; // Importar
-import HomePage from './pages/HomePage';
-import OnboardingPage from './pages/OnboardingPage';
-import PairingPage from './pages/PairingPage';
-import BodyMapPage from './pages/BodyMapPage';
-import DesiresPage from './pages/DesiresPage';
-import StoriesPage from './pages/StoriesPage';
-import GamesPage from './pages/GamesPage';
+
+// Importaciones corregidas para apuntar a la carpeta /views
+import Home from './views/Home';
+import BodyMap from './views/BodyMap';
+import DesirePath from './views/DesirePath';
+import StoryWeaver from './views/StoryWeaver';
+import SexDice from './views/SexDice';
+import PassionPassport from './views/PassionPassport';
+import TandemJournal from './views/TandemJournal';
+import SoulMirror from './views/SoulMirror';
+import WishChest from './views/WishChest';
+import MyJourney from './views/MyJourney';
+import CouplesIntimacy from './views/CouplesIntimacy';
+import Mastery from './views/Mastery';
+import Adventures from './views/Adventures';
+import AudioGuides from './views/AudioGuides';
+import NexoGuide from './views/NexoGuide';
+import PairingPage from './views/PairingPage';
+
+import Sidebar from './components/Sidebar';
 
 const App: React.FC = () => {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [coupleId, setCoupleId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let storedUserId = localStorage.getItem('nexus-user-id');
-    if (!storedUserId) {
-      storedUserId = uuidv4();
-      localStorage.setItem('nexus-user-id', storedUserId);
-    }
-    setUserId(storedUserId);
-
-    const storedCoupleId = localStorage.getItem('nexus-couple-id');
-    if (storedCoupleId) {
-      setCoupleId(storedCoupleId);
-    }
-  }, []);
-
-  if (!userId) {
-    return <div>Cargando...</div>;
-  }
-
   return (
     <Router>
-      <NotificationProvider>
-        <CoupleProvider initialCoupleId={coupleId} userId={userId}>
-          <ModalProvider> {/* Envolver con ModalProvider */}
-            <Routes>
-              <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/pairing" element={<PairingPage userId={userId} setCoupleId={setCoupleId} />} />
-              
-              {coupleId ? (
-                <>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/body-map" element={<BodyMapPage />} />
-                  <Route path="/desires" element={<DesiresPage />} />
-                  <Route path="/stories" element={<StoriesPage />} />
-                  <Route path="/games" element={<GamesPage />} />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </>
-              ) : (
-                <Route path="*" element={<Navigate to="/onboarding" />} />
-              )}
-            </Routes>
-          </ModalProvider>
+      <KeysProvider>
+        <CoupleProvider>
+          <EmpathyEngineProvider>
+            <PassportProvider>
+              <NotificationProvider>
+                <div className="flex bg-gray-900 text-white min-h-screen">
+                  <Sidebar />
+                  <main className="flex-1 p-4 md:p-10 ml-16 md:ml-64">
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/body-map" element={<BodyMap />} />
+                      <Route path="/desire-path" element={<DesirePath />} />
+                      <Route path="/story-weaver" element={<StoryWeaver />} />
+                      <Route path="/sex-dice" element={<SexDice />} />
+                      <Route path="/passion-passport" element={<PassionPassport />} />
+                      <Route path="/tandem-journal" element={<TandemJournal />} />
+                      <Route path="/soul-mirror" element={<SoulMirror />} />
+                      <Route path="/wish-chest" element={<WishChest />} />
+                      <Route path="/my-journey" element={<MyJourney />} />
+                      <Route path="/couples-intimacy" element={<CouplesIntimacy />} />
+                      <Route path="/mastery" element={<Mastery />} />
+                      <Route path="/adventures" element={<Adventures />} />
+                      <Route path="/audio-guides" element={<AudioGuides />} />
+                      <Route path="/nexo-guide" element={<NexoGuide />} />
+                      <Route path="/pairing" element={<PairingPage />} />
+                      <Route path="*" element={<Navigate to="/" />} />
+                    </Routes>
+                  </main>
+                </div>
+              </NotificationProvider>
+            </PassportProvider>
+          </EmpathyEngineProvider>
         </CoupleProvider>
-      </NotificationProvider>
+      </KeysProvider>
     </Router>
   );
 };
