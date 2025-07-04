@@ -160,11 +160,6 @@ export const generateCouplesIntimateMindfulness = (params: StoryParams): Promise
         method: 'POST',
         body: JSON.stringify({ params })
     });
-export const generateCouplesIntimateConnection = (params: StoryParams): Promise<GeneratedStory> =>
-    fetchWithAuth('/couples/intimate-connection', {
-        method: 'POST',
-        body: JSON.stringify({ params })
-    });
 export const generateCouplesIntimateExploration = (params: StoryParams): Promise<GeneratedStory> =>
     fetchWithAuth('/couples/intimate-exploration', {
         method: 'POST',
