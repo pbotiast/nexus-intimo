@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:client": "vite build",
-    "build:server": "tsc --project tsconfig.node.json",
     "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build --force",
+    "build:server": "tsc --project tsconfig.node.json",
+    "preview": "vite preview"
     "start": "node dist/server.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
   },
   "dependencies": {
     "@google/generative-ai": "^0.1.3",
