@@ -1,9 +1,9 @@
-// src/contexts/AuthContext.tsx - VERSIÓN COMPLETA Y CORREGIDA
+// src/contexts/AuthContext.tsx - VERSIÓN DEFINITIVA
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { initializeApp } from 'firebase/app';
+import { initializeApp } from 'firebase/app'; // <--- SINTAXIS MODERNA
 import { 
-  getAuth,
+  getAuth, // <--- SINTAXIS MODERNA
   onAuthStateChanged, 
   User, 
   signInAnonymously 
