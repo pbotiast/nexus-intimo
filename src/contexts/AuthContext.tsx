@@ -1,15 +1,15 @@
 // src/contexts/AuthContext.tsx - VERSIÓN COMPLETA Y CORREGIDA
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { initializeApp } from 'firebase/app'; // <--- CORRECCIÓN 1
+import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, // <--- CORRECCIÓN 2
+  getAuth,
   onAuthStateChanged, 
   User, 
   signInAnonymously 
 } from 'firebase/auth';
 
-// Tu configuración de Firebase, que ya está bien
+// Tu configuración de Firebase
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -20,10 +20,10 @@ const firebaseConfig = {
 };
 
 // Inicializa Firebase con la sintaxis moderna y exporta el objeto 'auth'
-const app = initializeApp(firebaseConfig); // <--- CORRECCIÓN 3
-export const auth = getAuth(app); // <--- CORRECCIÓN 4
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 
-// El resto de tu archivo ya está bien, no necesita cambios
+// El resto del archivo no necesita cambios
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
@@ -47,9 +47,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        localStorage.setItem('authToken', user.uid); // Ejemplo de guardar un identificador
+        localStorage.setItem('authToken', user.uid);
       } else {
-        // Si no hay usuario, intenta iniciar sesión anónimamente
         signInAnonymously(auth).catch((error) => {
           console.error("Anonymous sign-in failed:", error);
         });
@@ -57,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
-    return unsubscribe; // Cleanup subscription on unmount
+    return unsubscribe;
   }, []);
 
   const value = {
