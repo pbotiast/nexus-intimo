@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:client && npm run build:server",
-    "build:client": "vite build --force",
+    "build:client": "vite build",
     "build:server": "tsc --project tsconfig.node.json",
     "preview": "vite preview"
 },
